@@ -4,7 +4,7 @@ Dokumen ini merancang arsitektur awal Codebase Wiki berdasarkan `docs/prd/prd.md
 
 ## Scope
 
-Codebase Wiki adalah platform dokumentasi otomatis berbasis AI. User dapat memasukkan source project melalui upload ZIP atau GitHub repository URL. Untuk private repository, user dapat memberikan GitHub Personal Access Token (PAT) dengan permission minimum read-only. Sistem lalu menganalisis struktur codebase, dependency, dan tech stack untuk menghasilkan dokumentasi wiki/Markdown.
+Codebase Wiki adalah platform dokumentasi otomatis berbasis AI. User dapat sign in, membuat project, lalu memasukkan source project melalui upload ZIP atau GitHub repository URL. Untuk private repository, user dapat memberikan GitHub Personal Access Token (PAT) dengan permission minimum read-only. PAT disimpan per user dalam encrypted file storage agar dapat dipakai untuk clone ulang dan regenerate docs. Sistem menganalisis struktur codebase, dependency, dan tech stack untuk menghasilkan dokumentasi multi-page wiki/Markdown seperti GitBook dengan sidebar otomatis.
 
 ## C1 - System Context
 
@@ -19,8 +19,8 @@ Codebase Wiki adalah platform dokumentasi otomatis berbasis AI. User dapat memas
 
 - **GitHub**: Sumber repository public/private dan integrasi GitHub Actions.
 - **GitHub Actions**: Trigger otomatis untuk regenerate dokumentasi ketika repository berubah.
-- **AI Provider**: Layanan AI seperti Gemini atau OpenAI untuk generate dokumentasi dan menjawab pertanyaan codebase.
-- **Email/Auth Provider**: Layanan autentikasi jika Sign In/Sign Up diaktifkan.
+- **AI Provider**: OpenAI-compatible API untuk generate dokumentasi, embeddings, dan AI chat.
+- **NextAuth/Auth Provider**: Layanan autentikasi untuk Sign In / Sign Up.
 
 ### Context Diagram
 
@@ -35,32 +35,47 @@ Person(pm, "Project Manager / Stakeholder", "Membaca gambaran project")
 
 System(codebaseWiki, "Codebase Wiki", "Generate dokumentasi project otomatis berbasis AI")
 System_Ext(github, "GitHub", "Public/private repositories dan GitHub Actions")
-System_Ext(aiProvider, "AI Provider", "Generate dokumentasi dan AI chat")
-System_Ext(authProvider, "Auth Provider", "Sign In / Sign Up")
+System_Ext(aiProvider, "OpenAI-compatible AI Provider", "Generate docs, embeddings, and AI chat")
+System_Ext(authProvider, "NextAuth/Auth Provider", "Sign In / Sign Up")
 
 Rel(developer, codebaseWiki, "Menginput source project dan membaca wiki")
 Rel(newDev, codebaseWiki, "Membaca dokumentasi onboarding")
 Rel(techLead, codebaseWiki, "Regenerate dokumentasi dari source terbaru")
 Rel(pm, codebaseWiki, "Melihat dokumentasi project")
-Rel(codebaseWiki, github, "Clone repository / menerima trigger workflow")
-Rel(codebaseWiki, aiProvider, "Mengirim context codebase dan menerima dokumentasi")
-Rel(codebaseWiki, authProvider, "Autentikasi user")
+Rel(codebaseWiki, github, "Clones repository and reads repository metadata")
+Rel(codebaseWiki, aiProvider, "Sends compact code context and receives generated documentation/chat output")
+Rel(codebaseWiki, authProvider, "Authenticates users via sign in / sign up")
 ```
 
 ## C2 - Container
 
 ### Containers
 
-- **Web App**: UI untuk upload ZIP, input GitHub URL/PAT, melihat status proses, membaca wiki, dan chat dengan AI.
-- **API / Orchestrator**: Backend utama yang menerima input, validasi, koordinasi proses analisis, panggil AI, dan mengatur output dokumentasi.
-- **Source Ingestion Worker**: Mengambil source project dari ZIP atau GitHub repository.
-- **Code Analyzer**: Membaca struktur folder, file penting, dependency, dan tech stack.
-- **AI Documentation Service**: Menyusun context ringkas dan memanggil AI Provider untuk generate dokumentasi.
-- **AI Chat Service**: Menjawab pertanyaan user berdasarkan context codebase dan dokumentasi.
-- **Documentation Store**: Menyimpan hasil dokumentasi, metadata project, dan status generation.
-- **Temporary Source Storage**: Penyimpanan sementara untuk ZIP/extracted repo/clone repository sebelum dianalisis.
-- **Auth Store**: Menyimpan data user/session bila Sign In/Sign Up digunakan.
-- **GitHub Actions Integration**: Endpoint atau workflow integration untuk trigger regenerate dokumentasi otomatis.
+- **Web App**: UI untuk sign in, create project, input source, melihat status proses, membaca wiki multi-page, dan AI chat.
+- **API / Orchestrator**: Backend utama untuk validasi input, job lifecycle, koordinasi ingestion/analyzer/generator, dan delivery hasil.
+- **Source Ingestion Worker**: Mengambil source project dari ZIP atau GitHub repository dan menulisnya ke temporary storage.
+- **Code Analyzer**: Membaca source dari temporary storage, memfilter file relevan, membaca dependency, dan mendeteksi tech stack.
+- **AI Documentation Service**: Menyusun compact context, memanggil AI Provider, lalu menghasilkan docs, sidebar, history, dan embeddings.
+- **AI Chat Service**: Menjawab pertanyaan user berdasarkan generated docs, metadata, dan vector search; tidak membaca raw source secara langsung.
+- **Documentation Store**: Persistent store untuk current docs, docs history, generated sidebar, metadata project, dan job status.
+- **Temporary Source Storage**: Ephemeral storage untuk ZIP, extracted source, dan cloned repository sebelum analisis.
+- **Encrypted PAT File Store**: Secure credential store untuk PAT terenkripsi per user.
+- **Vector Index Store**: Vector/embedding store untuk semantic codebase search dan grounding AI Chat.
+- **Auth Store**: Store untuk session/user metadata dari NextAuth.
+- **GitHub Actions Integration**: Workflow template + regenerate endpoint untuk automation dari GitHub Actions.
+
+### Job Lifecycle
+
+Lifecycle job utama yang harus didukung sistem:
+
+- `queued`
+- `uploading`
+- `cloning`
+- `extracting`
+- `scanning`
+- `generating`
+- `completed`
+- `failed`
 
 ### Container Diagram
 
@@ -70,37 +85,42 @@ title Codebase Wiki - Container Diagram
 
 Person(user, "User", "Developer, tech lead, PM, stakeholder")
 System_Ext(github, "GitHub", "Repository source dan GitHub Actions")
-System_Ext(aiProvider, "AI Provider", "Gemini/OpenAI")
+System_Ext(aiProvider, "OpenAI-compatible AI Provider", "Documentation, embeddings, and chat")
 System_Ext(authProvider, "Auth Provider", "Authentication service")
 
 System_Boundary(system, "Codebase Wiki") {
-  Container(web, "Web App", "Next.js / React", "Input source, status proses, wiki viewer, AI chat")
+  Container(web, "Web App", "Next.js / React", "Sign in, create project, input source, status, multi-page wiki, AI chat")
   Container(api, "API / Orchestrator", "Next.js API / Node.js", "Validasi input dan koordinasi pipeline")
   Container(worker, "Source Ingestion Worker", "Node.js", "Extract ZIP atau clone repository")
   Container(analyzer, "Code Analyzer", "Node.js", "Scan folder, dependency, tech stack")
-  Container(docGen, "AI Documentation Service", "Node.js", "Build context dan generate docs")
+  Container(docGen, "AI Documentation Service", "Node.js", "Build context, generate multi-page docs, sidebar, history")
   Container(chat, "AI Chat Service", "Node.js", "Jawab pertanyaan user terkait codebase")
-  ContainerDb(docStore, "Documentation Store", "Database / File Storage", "Docs, metadata, status generation")
+  ContainerDb(docStore, "Documentation Store", "Database / File Storage", "Current docs, history, sidebar, metadata, status")
   ContainerDb(tempStorage, "Temporary Source Storage", "Ephemeral storage", "ZIP, extracted files, cloned repos")
-  ContainerDb(authStore, "Auth Store", "Database/Auth session", "User dan session metadata")
+  ContainerDb(patStore, "Encrypted PAT File Store", "Encrypted file storage", "PAT per user for clone/regenerate")
+  ContainerDb(vectorStore, "Vector Index Store", "Embeddings", "Semantic codebase search")
+  ContainerDb(authStore, "Auth Store", "NextAuth session", "User dan session metadata")
   Container(actions, "GitHub Actions Integration", "Webhook / workflow endpoint", "Trigger regenerate docs otomatis")
 }
 
 Rel(user, web, "Menggunakan")
 Rel(web, api, "Request upload/input repo/chat")
-Rel(api, authProvider, "Autentikasi")
+Rel(api, authProvider, "Autentikasi via NextAuth")
 Rel(api, authStore, "Simpan/ambil session metadata")
 Rel(api, worker, "Start ingestion job")
+Rel(worker, patStore, "Reads encrypted PAT per user")
 Rel(worker, github, "Clone repo public/private via PAT")
 Rel(worker, tempStorage, "Simpan source sementara")
 Rel(api, analyzer, "Start analysis")
 Rel(analyzer, tempStorage, "Baca source project")
 Rel(analyzer, docGen, "Kirim codebase summary")
 Rel(docGen, aiProvider, "Generate dokumentasi")
-Rel(docGen, docStore, "Simpan output docs")
+Rel(docGen, docStore, "Simpan current docs, history, sidebar")
+Rel(docGen, vectorStore, "Simpan embeddings/index")
 Rel(web, docStore, "Baca wiki generated")
 Rel(web, chat, "Ajukan pertanyaan")
 Rel(chat, docStore, "Ambil docs/context")
+Rel(chat, vectorStore, "Semantic codebase search")
 Rel(chat, aiProvider, "Generate jawaban")
 Rel(github, actions, "Trigger workflow/webhook")
 Rel(actions, api, "Request regenerate docs")
@@ -110,176 +130,125 @@ Rel(actions, api, "Request regenerate docs")
 
 ### API / Orchestrator Components
 
-- **Input Controller**: Menerima upload ZIP, GitHub URL, PAT, dan request chat.
-- **Input Validator**: Validasi format ZIP, URL GitHub, akses repository, dan PAT permission.
+- **Input Controller**: Menerima sign in session, create project, upload ZIP, GitHub URL, PAT, dan request chat.
+- **Input Validator**: Validasi format ZIP, batas 50MB, URL GitHub, akses repository, dan PAT permission.
 - **Job Coordinator**: Mengatur status proses: uploading, cloning, extracting, scanning, generating, completed, failed.
-- **Project Metadata Manager**: Menyimpan metadata project, tech stack, dependency, dan status generation.
+- **Project Metadata Manager**: Menyimpan metadata project, tech stack, dependency, docs history, sidebar, dan status generation.
 - **Error Handler**: Menangani upload gagal, URL invalid, repository inaccessible, PAT invalid, extract gagal, dan AI failure.
 
 ### Source Ingestion Worker Components
 
 - **Zip Extractor**: Mengekstrak file ZIP ke temporary source storage.
 - **GitHub Clone Adapter**: Clone public/private repository dari GitHub.
-- **PAT Credential Handler**: Menggunakan PAT untuk akses private repo tanpa menampilkan atau mencatat token ke log.
-- **Source Cleanup Task**: Membersihkan source sementara setelah proses selesai atau timeout.
+- **PAT Credential Handler**: Mengambil PAT dari encrypted file storage, menggunakan PAT untuk akses private repo, dan mendukung revoke/delete oleh user pemilik.
+- **Source Cleanup Task**: Membersihkan source sementara setelah proses selesai/gagal dengan fallback TTL 30 menit.
 
 ### Code Analyzer Components
 
 - **Folder Scanner**: Membaca struktur folder dan file penting.
+- **Exclude Filter**: Mengecualikan `node_modules`, `.git`, `.next`, `dist`, `build`, `coverage`, `.turbo`, cache, dan artifact besar yang tidak relevan.
 - **Dependency Scanner**: Membaca dependency dari `package.json`, `requirements.txt`, atau file dependency lain.
 - **Tech Stack Detector**: Mengidentifikasi framework dan library utama.
-- **Context Builder**: Menyusun ringkasan codebase untuk AI tanpa mengirim seluruh source code.
+- **Context Builder**: Menyusun context codebase komprehensif untuk AI dengan filtering, chunking, dan batas ukuran payload.
 
 ### AI Documentation Service Components
 
 - **Prompt Builder**: Membuat prompt berdasarkan codebase summary.
-- **AI Provider Client**: Mengirim context ke Gemini/OpenAI dan menerima output.
-- **Markdown Formatter**: Merapikan output AI menjadi struktur wiki/Markdown.
-- **Documentation Publisher**: Menyimpan dan menampilkan dokumentasi yang sudah digenerate.
+- **AI Provider Client**: Mengirim context ke OpenAI-compatible API dan menerima output.
+- **Markdown Page Splitter**: Memecah output menjadi multiple Markdown pages per topik.
+- **Sidebar Generator**: Membuat sidebar otomatis dari struktur halaman.
+- **Documentation Publisher**: Menyimpan current docs, sidebar, dan history generation.
+- **Embedding Indexer**: Membuat embeddings/vector index untuk semantic codebase search.
 
 ### AI Chat Service Components
 
 - **Question Handler**: Menerima pertanyaan user terkait project.
-- **Context Retriever**: Mengambil dokumentasi dan metadata project yang relevan.
+- **Context Retriever**: Mengambil dokumentasi, metadata, dan hasil semantic search yang relevan.
 - **Chat Prompt Builder**: Membuat prompt untuk menjawab pertanyaan berdasarkan context.
 - **Chat Response Formatter**: Merapikan jawaban AI agar mudah dibaca user.
 
-## C4 - Code
+## C4 - Code Level
 
-Level C4 berikut adalah rancangan code-level untuk MVP. Karena implementasi belum dibuat, nama folder/file di bawah adalah arahan struktur yang disarankan agar container dan component di C2/C3 punya mapping jelas ke codebase.
+Untuk menjaga Level 4 tetap valid sebagai C4 code-level view, bagian ini hanya memecah **satu komponen inti**, yaitu **AI Documentation Service**. Komponen ini dipilih karena merupakan pusat value dari Codebase Wiki: menerima codebase summary, memanggil AI provider, memecah hasil menjadi multiple pages, membangun sidebar, menyimpan history, dan membuat embeddings untuk semantic search.
 
-### Suggested Code Structure
+### Target Component
 
-```text
-apps/
-├─ web/
-│  ├─ app/
-│  │  ├─ page.tsx
-│  │  ├─ projects/[projectId]/page.tsx
-│  │  └─ api/
-│  │     ├─ projects/route.ts
-│  │     ├─ ingest/route.ts
-│  │     ├─ generate-docs/route.ts
-│  │     └─ chat/route.ts
-│  ├─ components/
-│  │  ├─ SourceInputForm.tsx
-│  │  ├─ GenerationStatus.tsx
-│  │  ├─ WikiViewer.tsx
-│  │  └─ ChatPanel.tsx
-│  └─ lib/
-│     ├─ api-client.ts
-│     └─ markdown.ts
-└─ api/
-   ├─ src/
-   │  ├─ controllers/
-   │  │  ├─ input-controller.ts
-   │  │  └─ chat-controller.ts
-   │  ├─ services/
-   │  │  ├─ job-coordinator.ts
-   │  │  ├─ project-metadata-service.ts
-   │  │  ├─ ai-documentation-service.ts
-   │  │  └─ ai-chat-service.ts
-   │  ├─ ingestion/
-   │  │  ├─ zip-extractor.ts
-   │  │  ├─ github-clone-adapter.ts
-   │  │  ├─ pat-credential-handler.ts
-   │  │  └─ source-cleanup-task.ts
-   │  ├─ analyzer/
-   │  │  ├─ folder-scanner.ts
-   │  │  ├─ dependency-scanner.ts
-   │  │  ├─ tech-stack-detector.ts
-   │  │  └─ context-builder.ts
-   │  ├─ ai/
-   │  │  ├─ prompt-builder.ts
-   │  │  ├─ ai-provider-client.ts
-   │  │  ├─ markdown-formatter.ts
-   │  │  └─ documentation-publisher.ts
-   │  ├─ storage/
-   │  │  ├─ documentation-store.ts
-   │  │  ├─ temporary-source-storage.ts
-   │  │  └─ auth-store.ts
-   │  └─ integrations/
-   │     └─ github-actions-handler.ts
-```
+- **AI Documentation Service**
 
-### Key Classes / Modules
+### Classes / Modules in Scope
 
-#### Input Flow
+- **PromptBuilder**: Menyusun prompt dokumentasi dari codebase summary.
+- **AIProviderClient**: Adapter ke OpenAI-compatible API.
+- **MarkdownFormatter**: Membersihkan output AI agar stabil dan konsisten.
+- **MarkdownPageSplitter**: Memecah hasil dokumentasi menjadi multiple Markdown pages per topik.
+- **SidebarGenerator**: Membuat sidebar navigasi otomatis dari hasil page split.
+- **EmbeddingIndexer**: Membuat embeddings dari generated docs untuk semantic search.
+- **DocumentationPublisher**: Menyimpan current docs, docs history, sidebar, dan metadata output.
 
-- **SourceInputForm**: UI untuk upload ZIP, input GitHub URL, dan optional PAT.
-- **InputController**: Entry point API untuk menerima source project.
-- **InputValidator**: Validasi ZIP, GitHub URL, repository accessibility, dan PAT permission.
-- **JobCoordinator**: Membuat job, menyimpan status, dan memanggil ingestion/analyzer/generator.
-
-#### Source Ingestion
-
-- **ZipExtractor**: Mengekstrak ZIP ke temporary source storage.
-- **GitHubCloneAdapter**: Clone public/private repository dari GitHub.
-- **PATCredentialHandler**: Menggunakan PAT secara read-only tanpa logging token.
-- **SourceCleanupTask**: Menghapus source sementara setelah job selesai atau timeout.
-
-#### Code Analysis
-
-- **FolderScanner**: Membaca struktur folder dan file penting.
-- **DependencyScanner**: Membaca dependency dari `package.json`, `requirements.txt`, dan file dependency lain.
-- **TechStackDetector**: Mengidentifikasi framework/library utama.
-- **ContextBuilder**: Membuat context ringkas untuk AI agar tidak mengirim seluruh source code.
-
-#### AI Documentation
-
-- **PromptBuilder**: Membuat prompt dokumentasi dari context project.
-- **AIProviderClient**: Adapter ke Gemini/OpenAI.
-- **MarkdownFormatter**: Merapikan output AI menjadi Markdown/wiki.
-- **DocumentationPublisher**: Menyimpan hasil dokumentasi dan membuatnya tersedia untuk Web App.
-
-#### Wiki & Chat
-
-- **WikiViewer**: Render dokumentasi Markdown ke UI.
-- **ChatPanel**: UI tanya jawab terkait project.
-- **AIChatService**: Menjawab pertanyaan berdasarkan generated docs dan project metadata.
-- **ContextRetriever**: Mengambil context relevan dari Documentation Store.
-
-### Code-Level Flow
+### Code-Level Relationships
 
 ```text
-SourceInputForm
-  -> InputController
-  -> InputValidator
-  -> JobCoordinator
-  -> ZipExtractor / GitHubCloneAdapter
-  -> TemporarySourceStorage
-  -> FolderScanner / DependencyScanner / TechStackDetector
-  -> ContextBuilder
+ContextBuilder
   -> PromptBuilder
   -> AIProviderClient
   -> MarkdownFormatter
+  -> MarkdownPageSplitter
+  -> SidebarGenerator
+  -> EmbeddingIndexer
   -> DocumentationPublisher
-  -> DocumentationStore
-  -> WikiViewer
+  -> DocumentationStore / VectorIndexStore
 ```
+
+### Responsibilities
+
+- **PromptBuilder** mengubah codebase summary menjadi prompt yang siap dikirim ke AI.
+- **AIProviderClient** berkomunikasi dengan provider AI untuk menghasilkan draft dokumentasi.
+- **MarkdownFormatter** membersihkan output AI sebelum dipublikasikan.
+- **MarkdownPageSplitter** membagi output menjadi beberapa halaman Markdown.
+- **SidebarGenerator** membangun struktur sidebar dari halaman yang sudah di-split.
+- **EmbeddingIndexer** menyiapkan vector search untuk AI Chat.
+- **DocumentationPublisher** menyimpan output final ke `Documentation Store` dan `Vector Index Store`.
+
+### Out of Scope for C4 Level 4
+
+Bagian berikut sengaja **tidak** dimasukkan ke code-level decomposition ini agar C4 Level 4 tidak berubah menjadi inventaris semua file:
+
+- Web App modules
+- Auth modules
+- Full source ingestion pipeline
+- Full analyzer pipeline
+- GitHub Actions handler
+- Semua storage implementation detail di luar dependency langsung komponen ini
 
 ### C4 Code Notes
 
-- `temporary-source-storage.ts` harus hanya menyimpan source sementara dan punya cleanup policy.
-- `pat-credential-handler.ts` tidak boleh menulis PAT ke log atau menyimpan token tanpa enkripsi.
-- `context-builder.ts` harus membatasi context yang dikirim ke AI.
-- `github-actions-handler.ts` dapat menjadi nice-to-have untuk trigger regenerate docs dari workflow.
-- `ai-chat-service.ts` dapat diposisikan sebagai bonus jika MVP utama belum selesai.
+- `AIProviderClient` hanya menerima compact context, bukan raw source penuh.
+- `MarkdownPageSplitter` dan `SidebarGenerator` adalah kunci agar output terasa seperti GitBook.
+- `EmbeddingIndexer` hanya berjalan setelah dokumen berhasil dihasilkan.
+- `DocumentationPublisher` harus overwrite current docs tetapi tetap menyimpan history.
+
+## Diagram Notes
+
+- Di C2, detail seperti TTL cleanup, encrypted PAT, dan no logging sebaiknya dijelaskan melalui note/annotation, bukan dimasukkan semua ke label container utama.
+- AI Chat harus digambarkan grounded pada `Documentation Store` dan `Vector Index Store`, bukan membaca raw source langsung.
+- `Temporary Source Storage` hanya berada di jalur ingestion dan analyzer, bukan jalur chat.
+- `Documentation Store` adalah persistent output store, sedangkan `Temporary Source Storage` adalah ephemeral working area.
 
 ## Security & Trust Boundaries
 
-- PAT harus dianggap credential sensitif.
-- PAT hanya boleh digunakan untuk akses repository yang diminta user.
+- PAT harus dianggap credential sensitif dan disimpan terenkripsi per user dalam encrypted file storage.
+- PAT hanya boleh digunakan untuk akses repository milik user/project yang terkait.
+- User pemilik harus dapat revoke/delete PAT.
 - PAT tidak boleh ditampilkan kembali ke user atau ditulis ke log aplikasi.
-- Jika PAT perlu disimpan untuk penggunaan ulang, token harus dienkripsi dan memiliki lifecycle yang jelas.
 - Source code yang diupload atau di-clone tidak boleh dieksekusi oleh sistem.
-- Temporary source storage harus memiliki cleanup policy.
-- Context yang dikirim ke AI sebaiknya berupa ringkasan struktur, dependency, dan file penting, bukan seluruh source code.
+- Temporary source storage harus dibersihkan setelah job selesai/gagal dan punya fallback TTL cleanup 30 menit.
+- ZIP upload dibatasi maksimal 50MB.
+- Context yang dikirim ke AI harus melewati exclude filter, chunking, dan semantic retrieval agar tetap relevan dan tidak membanjiri model.
 
 ## Open Questions
 
-- Apakah MVP harus menyimpan PAT secara persistent atau cukup digunakan sementara saat request berjalan?
-- Apakah GitHub Actions integration untuk hackathon cukup berupa workflow template atau perlu endpoint webhook penuh?
-- Apakah Codebase Wiki menyimpan hasil dokumentasi ke database atau cukup file/temporary storage untuk demo?
-- Apakah AI Chat masuk MVP, nice-to-have, atau demo bonus?
-- Apakah Sign In/Sign Up wajib untuk MVP atau cukup disiapkan sebagai future capability?
+- Format encrypted file storage untuk PAT per user.
+- Storage final untuk docs history dan vector index.
+- Detail workflow template GitHub Actions dan endpoint regenerate docs.
+- Strategi chunking dan embedding untuk semantic codebase search.
+- Apakah generated docs bisa diedit manual setelah dibuat.
