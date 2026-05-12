@@ -38,6 +38,7 @@ export class CompactContextBuilder implements CompactContextBuilderContract {
     const implementationHints = importantFiles
       .filter((file) => (input.rawScan.filePaths ?? []).includes(file))
       .join(', ');
+    const sourceEvidence = formatSourceEvidence(input.rawScan.sourceEvidence ?? []);
 
     const seed = [
       '[CONTEXT]',
@@ -51,6 +52,7 @@ export class CompactContextBuilder implements CompactContextBuilderContract {
       `dependencies=${dependencyPreview}`,
       `excludedPaths=${input.rawScan.excludedPaths.slice(0, 20).join(', ')}`,
       `docSections=${input.suggestedDocStructure.join(' | ')}`,
+      sourceEvidence,
     ].join('\n');
 
     const enforced = this.tokenLimiter.enforce({
@@ -63,6 +65,52 @@ export class CompactContextBuilder implements CompactContextBuilderContract {
       tokenEstimate: enforced.tokenEstimate,
     };
   }
+}
+
+function formatSourceEvidence(sourceEvidence: NonNullable<RawScanResult['sourceEvidence']>): string {
+  if (sourceEvidence.length === 0) {
+    return '[SOURCE_EVIDENCE]\nnone';
+  }
+
+  const sections = [
+    '[SOURCE_EVIDENCE]',
+    ...sourceEvidence.slice(0, 24).map((evidence) =>
+      [
+        `path=${evidence.path}`,
+        `language=${evidence.language}`,
+        `categories=${evidence.categories.join(',')}`,
+        `truncated=${evidence.truncated}`,
+        'excerpt:',
+        evidence.excerpt.trim(),
+      ].join('\n'),
+    ),
+  ];
+
+  const apiEvidence = sourceEvidence.filter((evidence) => evidence.categories.includes('api')).slice(0, 8);
+  if (apiEvidence.length > 0) {
+    sections.push(
+      '[API_EVIDENCE]',
+      ...apiEvidence.map((evidence) => `${evidence.path}\n${evidence.excerpt.trim()}`),
+    );
+  }
+
+  const securityEvidence = sourceEvidence.filter((evidence) => evidence.categories.includes('security')).slice(0, 8);
+  if (securityEvidence.length > 0) {
+    sections.push(
+      '[SECURITY_EVIDENCE]',
+      ...securityEvidence.map((evidence) => `${evidence.path}\n${evidence.excerpt.trim()}`),
+    );
+  }
+
+  const architectureEvidence = sourceEvidence.filter((evidence) => evidence.categories.includes('architecture')).slice(0, 8);
+  if (architectureEvidence.length > 0) {
+    sections.push(
+      '[ARCHITECTURE_EVIDENCE]',
+      ...architectureEvidence.map((evidence) => `${evidence.path}\n${evidence.excerpt.trim()}`),
+    );
+  }
+
+  return sections.join('\n');
 }
 
 export class MaxTokenLimiter implements CompactContextTokenLimiter {

@@ -86,6 +86,53 @@ describe('codebase analysis pipeline', () => {
     });
   });
 
+  test('deterministic scan collects bounded redacted source evidence from documentation-relevant files', async () => {
+    const sourcePath = await createTempProject();
+
+    await writeJson(path.join(sourcePath, 'package.json'), {
+      dependencies: { express: '^4.18.0' },
+    });
+    await fs.mkdir(path.join(sourcePath, 'src', 'routes'), { recursive: true });
+    await fs.mkdir(path.join(sourcePath, 'src', 'auth'), { recursive: true });
+    await fs.writeFile(
+      path.join(sourcePath, 'src', 'routes', 'users.ts'),
+      [
+        'import express from "express";',
+        'export const router = express.Router();',
+        'router.get("/users", listUsers);',
+        'router.post("/users", createUser);',
+      ].join('\n'),
+      'utf-8',
+    );
+    await fs.writeFile(
+      path.join(sourcePath, 'src', 'auth', 'secrets.ts'),
+      'export const apiKey = "sk-live-super-secret-value";\nexport const bearer = "Bearer abcdefghijklmnop";\n',
+      'utf-8',
+    );
+    await fs.mkdir(path.join(sourcePath, 'dist'), { recursive: true });
+    await fs.writeFile(path.join(sourcePath, 'dist', 'bundle.js'), 'router.get("/ignored", noop);', 'utf-8');
+
+    const scanner = new DeterministicScanner({
+      folderScanner: new FolderScannerStub({ excludeFilter: new StandardExcludeFilterStub() }),
+      dependencyScanner: new DependencyScanner(),
+    });
+
+    const result = await scanner.scan({ projectId: 'project-source-evidence', sourcePath });
+
+    expect(result.sourceEvidence?.map((evidence) => evidence.path)).toEqual(
+      expect.arrayContaining(['package.json', 'src/auth/secrets.ts', 'src/routes/users.ts']),
+    );
+    expect(result.sourceEvidence?.some((evidence) => evidence.path.startsWith('dist/'))).toBe(false);
+    expect(result.sourceEvidence?.find((evidence) => evidence.path === 'src/routes/users.ts')?.categories).toEqual(
+      expect.arrayContaining(['api', 'feature']),
+    );
+    const secretEvidence = result.sourceEvidence?.find((evidence) => evidence.path === 'src/auth/secrets.ts');
+    expect(secretEvidence?.categories).toEqual(expect.arrayContaining(['security']));
+    expect(secretEvidence?.excerpt).toContain('[REDACTED_SECRET]');
+    expect(secretEvidence?.excerpt).not.toContain('sk-live-super-secret-value');
+    expect(secretEvidence?.excerpt).not.toContain('abcdefghijklmnop');
+  });
+
   test('fallback enrichment infers tech stack and produces compact context within token limit', () => {
     const rawScan = {
       projectId: 'project-2',
@@ -481,6 +528,50 @@ describe('codebase analysis pipeline', () => {
     expect(compact.compactContext).toContain('projectId=project-compact');
     expect(compact.compactContext).toContain('techStack=Next.js, TypeScript');
     expect(compact.compactContext).not.toContain('dep-79');
+  });
+
+  test('compact context builder includes source-grounded evidence categories for canonical docs', () => {
+    const rawScan: RawScanResult = {
+      projectId: 'project-evidence-context',
+      fileCount: 3,
+      folderStructure: ['src', 'src/routes', 'src/auth'],
+      configFiles: [{ path: 'package.json', type: 'package.json' }],
+      dependencies: { express: '^4.18.0' },
+      filePaths: ['package.json', 'src/routes/users.ts', 'src/auth/session.ts'],
+      sourceEvidence: [
+        {
+          path: 'src/routes/users.ts',
+          language: 'typescript',
+          categories: ['api', 'feature'],
+          excerpt: 'router.get("/users", listUsers);',
+          truncated: false,
+        },
+        {
+          path: 'src/auth/session.ts',
+          language: 'typescript',
+          categories: ['security'],
+          excerpt: 'verifySession(request);',
+          truncated: false,
+        },
+      ],
+      excludedPaths: [],
+      scanDuration: 4,
+    };
+
+    const compact = new CompactContextBuilder().build({
+      projectId: 'project-evidence-context',
+      rawScan,
+      techStack: ['Express', 'TypeScript'],
+      importantFiles: ['src/routes/users.ts', 'src/auth/session.ts'],
+      suggestedDocStructure: ['Overview', 'Architecture', 'API Reference', 'Security', 'Users Route'],
+    });
+
+    expect(compact.compactContext).toContain('[SOURCE_EVIDENCE]');
+    expect(compact.compactContext).toContain('[API_EVIDENCE]');
+    expect(compact.compactContext).toContain('src/routes/users.ts');
+    expect(compact.compactContext).toContain('router.get("/users", listUsers);');
+    expect(compact.compactContext).toContain('[SECURITY_EVIDENCE]');
+    expect(compact.compactContext).toContain('verifySession(request);');
   });
 
   test('deterministic analysis includes file paths and compact context exposes file breakdown', async () => {

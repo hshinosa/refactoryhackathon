@@ -45,6 +45,7 @@ export class DeterministicScanner implements DeterministicScannerContract {
         .filter((entry) => entry.kind === 'file')
         .map((entry) => entry.path)
         .sort((a, b) => a.localeCompare(b)),
+      sourceEvidence: folderScan.sourceEvidence,
       excludedPaths: folderScan.excludedPaths,
       scanDuration: Date.now() - startedAt,
     };

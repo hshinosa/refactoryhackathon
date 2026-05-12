@@ -173,8 +173,19 @@ export interface RawScanResult {
   }>;
   dependencies: Record<string, string>;
   filePaths?: string[];
+  sourceEvidence?: SourceEvidence[];
   excludedPaths: string[];
   scanDuration: number;
+}
+
+export type SourceEvidenceCategory = 'overview' | 'architecture' | 'api' | 'security' | 'feature' | 'configuration';
+
+export interface SourceEvidence {
+  path: string;
+  language: string;
+  categories: SourceEvidenceCategory[];
+  excerpt: string;
+  truncated: boolean;
 }
 
 export interface EnrichedAnalysis {
@@ -195,6 +206,7 @@ export interface GeneratedDocs {
   pages: GeneratedDocsPage[];
   sidebar: GeneratedSidebarItem[];
   secondarySidebar?: GeneratedSidebarItem;
+  sourceFiles?: GeneratedSourceFile[];
   generatedAt: string;
   version: number;
 }
@@ -211,6 +223,12 @@ export interface GeneratedSidebarItem {
   children?: GeneratedSidebarItem[];
 }
 
+export interface GeneratedSourceFile {
+  path: string;
+  language: string;
+  content: string;
+}
+
 export interface DocsHistoryEntry {
   projectId: string;
   version: number;
@@ -224,6 +242,7 @@ export interface RetrievedDocumentation {
   pages: GeneratedDocsPage[];
   sidebar: GeneratedSidebarItem[];
   secondarySidebar?: GeneratedSidebarItem;
+  sourceFiles?: GeneratedSourceFile[];
   generatedAt: string;
   version: number;
 }

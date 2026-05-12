@@ -273,6 +273,162 @@ describe('AI documentation generation pipeline', () => {
     expect(prompt.userPrompt).toContain('Proxy Service');
   });
 
+  test('requires fully populated canonical docs from source-grounded evidence', () => {
+    const prompt = new CodebaseDocPromptBuilderStub().buildPrompt({
+      projectId: 'project-full-docs',
+      compactContext: [
+        '[SOURCE_EVIDENCE]',
+        'path=src/routes/users.ts categories=api,feature',
+        'excerpt=router.get("/users", listUsers);',
+        '[SECURITY_EVIDENCE]',
+        'path=src/auth/session.ts categories=security',
+        'excerpt=verifySession(request);',
+      ].join('\n'),
+      suggestedDocStructure: ['Overview', 'Architecture', 'API Reference', 'Security', 'Users Route'],
+      maxPages: 10,
+    });
+
+    expect(prompt.systemPrompt).toContain('fully populated');
+    expect(prompt.systemPrompt).toContain('Overview page must explain');
+    expect(prompt.systemPrompt).toContain('Architecture page must explain');
+    expect(prompt.systemPrompt).not.toContain('Mermaid flowchart');
+    expect(prompt.systemPrompt).not.toContain('```mermaid');
+    expect(prompt.systemPrompt).toContain('API Reference page must document');
+    expect(prompt.systemPrompt).toContain('Security page must document');
+    expect(prompt.systemPrompt).toContain('source evidence');
+    expect(prompt.systemPrompt).not.toContain('Prefer concise high-signal pages');
+    expect(prompt.userPrompt).toContain('[SOURCE_EVIDENCE]');
+    expect(prompt.userPrompt).toContain('router.get("/users", listUsers);');
+  });
+
+  test('service gives enough page budget for four canonical docs plus feature pages', async () => {
+    const docsStore = new InMemoryDocumentationStoreStub();
+    let capturedSystemPrompt = '';
+    const pipeline = createAIDocGenerationPipelineStub({
+      aiClient: new OpenAICompatibleAIClientStub(),
+      promptBuilder: new CodebaseDocPromptBuilderStub(),
+      markdownFormatter: new MarkdownFormatterStub(),
+      pageSplitter: new MarkdownPageSplitterStub(new DocumentationPageBudget(10)),
+      sidebarGenerator: new SidebarGeneratorStub(),
+      docsHistoryStore: new InMemoryDocsHistoryStoreStub(),
+    });
+
+    pipeline.aiClient.generateText = async (input) => {
+      capturedSystemPrompt = input.messages[0].content;
+      return {
+        projectId: input.projectId,
+        model: input.model,
+        generatedAt: '2026-01-01T00:00:00.000Z',
+        content: [
+          '## Overview',
+          'Overview with concrete file citations.',
+          '## Architecture',
+          'Architecture with concrete file citations.',
+          '## API Reference',
+          'API reference with concrete file citations.',
+          '## Security',
+          'Security with concrete file citations.',
+          '## Users Route',
+          'Users route details.',
+          '## Session Middleware',
+          'Session middleware details.',
+        ].join('\n\n'),
+      };
+    };
+
+    const service = createAIDocGenerationService({
+      pipeline,
+      docsStore,
+      docsHistoryStore: new InMemoryDocsHistoryStoreStub(),
+      model: 'test-model',
+      suggestedDocStructure: ['Overview', 'Architecture', 'API Reference', 'Security', 'Users Route', 'Session Middleware'],
+    });
+
+    const docs = await service.generateDocs({
+      projectId: 'project-budget',
+      compactContext: '[SOURCE_EVIDENCE]\npath=src/routes/users.ts\nexcerpt=router.get("/users", listUsers);',
+    });
+
+    expect(capturedSystemPrompt).toContain('Do not exceed 10 pages');
+    expect(docs.pages.map((page) => page.title)).toEqual([
+      'Overview',
+      'Architecture',
+      'API Reference',
+      'Security',
+      'Users Route',
+      'Session Middleware',
+    ]);
+    expect(docs.sidebar).toContainEqual({
+      title: 'Features',
+      slug: 'features',
+      children: [
+        { title: 'Users Route', slug: 'users-route', children: [] },
+        { title: 'Session Middleware', slug: 'session-middleware', children: [] },
+      ],
+    });
+  });
+
+  test('service stores source files parsed from source evidence context', async () => {
+    const docsStore = new InMemoryDocumentationStoreStub();
+    const pipeline = createAIDocGenerationPipelineStub({
+      aiClient: new OpenAICompatibleAIClientStub(),
+      promptBuilder: new CodebaseDocPromptBuilderStub(),
+      markdownFormatter: new MarkdownFormatterStub(),
+      pageSplitter: new MarkdownPageSplitterStub(new DocumentationPageBudget(10)),
+      sidebarGenerator: new SidebarGeneratorStub(),
+      docsHistoryStore: new InMemoryDocsHistoryStoreStub(),
+    });
+
+    pipeline.aiClient.generateText = async (input) => ({
+      projectId: input.projectId,
+      model: input.model,
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      content: '## Overview\n\nOverview content',
+    });
+
+    const service = createAIDocGenerationService({
+      pipeline,
+      docsStore,
+      docsHistoryStore: new InMemoryDocsHistoryStoreStub(),
+      model: 'test-model',
+      suggestedDocStructure: ['Overview'],
+    });
+
+    const docs = await service.generateDocs({
+      projectId: 'project-source-files',
+      compactContext: [
+        '[SOURCE_EVIDENCE]',
+        'path=internal/proxy/client.go',
+        'language=go',
+        'categories=api,feature',
+        'truncated=false',
+        'excerpt:',
+        'func (c *Client) HandleModels(w http.ResponseWriter, r *http.Request) {}',
+        'path=internal/proxy/config.go',
+        'language=go',
+        'categories=configuration',
+        'truncated=false',
+        'excerpt:',
+        'func LoadConfig() (Config, error) { return Config{}, nil }',
+        '[API_EVIDENCE]',
+        'internal/proxy/client.go',
+      ].join('\n'),
+    });
+
+    expect(docs.sourceFiles).toEqual([
+      {
+        path: 'internal/proxy/client.go',
+        language: 'go',
+        content: 'func (c *Client) HandleModels(w http.ResponseWriter, r *http.Request) {}',
+      },
+      {
+        path: 'internal/proxy/config.go',
+        language: 'go',
+        content: 'func LoadConfig() (Config, error) { return Config{}, nil }',
+      },
+    ]);
+  });
+
   test('overwrites current docs while retaining previous generation history', async () => {
     const docsStore = new InMemoryDocumentationStoreStub();
     const docsHistoryStore = new InMemoryDocsHistoryStoreStub();

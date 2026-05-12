@@ -14,13 +14,14 @@ export function AppShell({ title = 'Codebase Wiki', children, actions, nav, clas
   return (
     <main className={cn('min-h-screen bg-[#080f17] text-slate-100', className)}>
       <header className="flex h-16 items-center border-b border-slate-500/35 px-6 md:px-12">
-        <div className="flex w-full items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
+        <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-6">
+          <div className="flex items-center gap-3 justify-self-start">
             <LogoMark size="h-8 w-8" />
             <span className="text-xl font-bold tracking-[-0.03em] text-[#dddfff]">{title}</span>
           </div>
           {nav ? <div className="hidden flex-1 justify-center md:flex">{nav}</div> : null}
-          {actions ? <div className="flex items-center gap-3">{actions}</div> : <div aria-hidden="true" />}
+          {actions ? <div className="flex items-center justify-self-center gap-3">{actions}</div> : <div aria-hidden="true" />}
+          <div aria-hidden="true" />
         </div>
       </header>
       {children}

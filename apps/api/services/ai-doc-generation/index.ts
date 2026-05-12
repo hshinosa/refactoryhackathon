@@ -4,6 +4,7 @@ import type {
   GeneratedDocs,
   GeneratedDocsPage,
   GeneratedSidebarItem,
+  GeneratedSourceFile,
 } from '../../types';
 
 import type {
@@ -114,7 +115,7 @@ export function createAIDocGenerationService(input: AIDocGenerationServiceInput)
         model: input.model,
         compactContext: args.compactContext,
         suggestedDocStructure: input.suggestedDocStructure,
-        maxPages: Math.min(input.suggestedDocStructure.length || 6, 6),
+        maxPages: Math.min(Math.max(input.suggestedDocStructure.length || 10, 10), 12),
       });
 
       const previousDocs = await input.docsStore.getCurrentDocs(args.projectId);
@@ -123,6 +124,7 @@ export function createAIDocGenerationService(input: AIDocGenerationServiceInput)
         pages: prepared.pages,
         sidebar: prepared.sidebar,
         secondarySidebar: prepared.secondarySidebar,
+        sourceFiles: extractSourceFilesFromContext(args.compactContext),
         generatedAt: prepared.modelOutput.generatedAt,
         version: previousDocs ? previousDocs.version + 1 : 1,
       };
@@ -135,6 +137,35 @@ export function createAIDocGenerationService(input: AIDocGenerationServiceInput)
       return nextDocs;
     },
   };
+}
+
+function extractSourceFilesFromContext(compactContext: string): GeneratedSourceFile[] {
+  const sourceSection = compactContext.match(/\[SOURCE_EVIDENCE\]\n([\s\S]*?)(?:\n\[(?:API|SECURITY|ARCHITECTURE)_EVIDENCE\]|$)/)?.[1] ?? '';
+  const entries = sourceSection
+    .split(/\n(?=path=)/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.startsWith('path='));
+
+  return entries
+    .map((entry) => {
+      const pathMatch = entry.match(/^path=(.+)$/m);
+      const languageMatch = entry.match(/^language=(.+)$/m);
+      const excerptMatch = entry.match(/^excerpt:\n([\s\S]*)$/m);
+      const filePath = pathMatch?.[1]?.trim();
+      const content = excerptMatch?.[1]?.trim();
+
+      if (!filePath || !content) {
+        return null;
+      }
+
+      return {
+        path: filePath,
+        language: languageMatch?.[1]?.trim() || 'text',
+        content,
+      };
+    })
+    .filter((file): file is GeneratedSourceFile => file !== null)
+    .slice(0, 24);
 }
 
 export * from './ai-provider-client';

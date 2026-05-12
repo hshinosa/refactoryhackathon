@@ -61,11 +61,12 @@ export class StructuredPromptBuilder implements EnrichmentPromptBuilderContract 
         `Folders: ${input.rawScan.folderStructure.slice(0, 20).join(', ')}`,
         `Configs: ${input.rawScan.configFiles.map((file) => `${file.path}:${file.type}`).join(', ')}`,
         `Dependencies: ${Object.keys(input.rawScan.dependencies).slice(0, 20).join(', ')}`,
+        `Source evidence files: ${(input.rawScan.sourceEvidence ?? []).map((evidence) => evidence.path).slice(0, 20).join(', ')}`,
       ].join('\n'),
       goal: '[GOAL]\nEnrich raw scan with intelligent analysis for documentation generation.',
-      downstream: '[DOWNSTREAM]\nOutput will feed AI documentation generation context and section planning.',
+      downstream: '[DOWNSTREAM]\nOutput will feed AI documentation generation context, section planning, and source-grounded canonical wiki pages.',
       request:
-        '[REQUEST]\nInfer tech stack, prioritize important files, produce compact context (<=2000 tokens), and suggest documentation structure.',
+        '[REQUEST]\nInfer tech stack, prioritize important files, produce compact context with source-grounded evidence for Overview, Architecture, API Reference, Security, feature pages, and suggest documentation structure.',
     };
   }
 }
@@ -234,6 +235,7 @@ export class OpenAICompatibleAgentEnrichmentSpawner implements AgentEnrichmentSp
             'Return only valid JSON matching this schema:',
             '{"techStack":string[],"importantFiles":string[],"compactContext":string,"suggestedDocStructure":string[]}',
             'Do not include markdown prose outside the JSON object.',
+            'Use sourceEvidence excerpts to produce concrete, file-cited context. Do not include secrets or unsupported claims.',
           ].join('\n'),
         },
         {

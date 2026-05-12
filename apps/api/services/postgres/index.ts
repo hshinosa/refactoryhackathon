@@ -226,6 +226,7 @@ export class PostgresDocumentationStore implements DocumentationStoreContract, D
       pages: docs.pages,
       sidebar: docs.sidebar,
       secondarySidebar: docs.secondarySidebar,
+      sourceFiles: docs.sourceFiles,
       generatedAt: docs.generatedAt,
       version: docs.version,
     };
