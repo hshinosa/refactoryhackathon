@@ -9,6 +9,7 @@ import { cn } from '@/components/ui/cn';
 import { docsArticle, docsNavGroups, type DocsNavPage } from './docsData';
 import { DocsSidebarNav } from './DocsSidebarNav';
 import { SourceCodeTabs } from './SourceCodeTabs';
+import { buildSearchDocsViewModel, type SearchDocsHighlightPart, type SearchDocsRawResult } from './docsSearchViewModel';
 import type { DocsReaderBlock, DocsReaderModel, DocsReaderSidebarItem } from './docsViewModel';
 
 function SearchIcon() {
@@ -241,15 +242,6 @@ function FeaturedDiagram() {
 
 type ApiResponse<T> = { data: T };
 
-type DocsSearchResult = {
-  title: string;
-  pageSlug?: string;
-  excerpt: string;
-  source: string;
-  relevanceScore: number;
-  href: string;
-};
-
 type WikiChatSession = {
   id: string;
   title: string;
@@ -315,6 +307,22 @@ function ChatMessageContent({ content }: { content: string }) {
   );
 }
 
+function HighlightedSearchExcerpt({ parts }: { parts: SearchDocsHighlightPart[] }) {
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.highlight ? (
+          <mark key={`${part.text}-${index}`} className="rounded bg-violet-300/15 px-0.5 text-violet-100">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={`${part.text}-${index}`}>{part.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 async function fetchData<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -340,9 +348,10 @@ function SearchDocsModal({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<DocsSearchResult[]>([]);
+  const [results, setResults] = useState<SearchDocsRawResult[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState('');
+  const viewResults = buildSearchDocsViewModel({ query, results });
 
   useEffect(() => {
     if (!open) return;
@@ -361,7 +370,7 @@ function SearchDocsModal({
     setStatus('loading');
     setError('');
     try {
-      const data = await fetchData<{ results: DocsSearchResult[] }>(`/api/projects/${projectId}/search`, {
+      const data = await fetchData<{ results: SearchDocsRawResult[] }>(`/api/projects/${projectId}/search`, {
         method: 'POST',
         body: JSON.stringify({ query, maxResults: 8 }),
       });
@@ -394,9 +403,14 @@ function SearchDocsModal({
         <div className="max-h-[60vh] overflow-y-auto p-4">
           {status === 'loading' ? <p className="p-4 text-sm text-slate-400">Searching indexed docs...</p> : null}
           {status === 'error' ? <p className="p-4 text-sm text-red-300">{error}</p> : null}
-          {status === 'idle' && query && results.length === 0 ? <p className="p-4 text-sm text-slate-400">No indexed docs matched this query.</p> : null}
+          {status === 'idle' && query && viewResults.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm leading-6 text-slate-400">
+              <p className="font-medium text-slate-200">No indexed docs matched this query.</p>
+              <p className="mt-1">Try regenerating docs or searching for a file, path, endpoint, or API term.</p>
+            </div>
+          ) : null}
           <div className="space-y-3">
-            {results.map((result) => (
+            {viewResults.map((result) => (
               <a
                 key={`${result.href}-${result.excerpt}`}
                 href={result.href}
@@ -404,9 +418,11 @@ function SearchDocsModal({
               >
                 <div className="flex items-center justify-between gap-4">
                   <p className="font-semibold text-white">{result.title}</p>
-                  <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">{result.source}</span>
+                  <span className="text-[11px] uppercase tracking-[0.14em] text-slate-500">{result.sourceLabel}</span>
                 </div>
-                <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#a1a1aa]">{result.excerpt}</p>
+                <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#a1a1aa]">
+                  <HighlightedSearchExcerpt parts={result.highlightParts} />
+                </p>
               </a>
             ))}
           </div>
