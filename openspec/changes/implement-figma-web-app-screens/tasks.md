@@ -16,10 +16,10 @@
 
 ## 3. Auth Pages
 
-- [ ] 3.1 Implement sign-in route matching Figma node `5:319` with semantic form controls and social auth buttons.
-- [ ] 3.2 Implement sign-up route matching Figma node `5:376` with corrected existing-account copy linking to sign in.
-- [ ] 3.3 Connect auth buttons/forms to NextAuth/Auth.js integration points when available, otherwise keep safe placeholder handlers.
-- [ ] 3.4 Verify keyboard focus order and accessible names for sign-in and sign-up controls.
+- [x] 3.1 Implement sign-in route matching Figma node `5:319` with semantic form controls and social auth buttons.
+- [x] 3.2 Implement sign-up route matching Figma node `5:376` with corrected existing-account copy linking to sign in.
+- [x] 3.3 Connect auth buttons/forms to NextAuth/Auth.js integration points when available, otherwise keep safe placeholder handlers.
+- [x] 3.4 Verify keyboard focus order and accessible names for sign-in and sign-up controls.
 
 ## 4. Documentation Reader
 
@@ -40,4 +40,4 @@
 - [ ] 6.1 Run LSP diagnostics on all changed web files.
 - [ ] 6.2 Run `npm run build --workspace=apps/web` and resolve errors introduced by this change.
 - [ ] 6.3 Verify dashboard, auth, loading, and docs routes in the existing dev server with browser snapshots.
-- [ ] 6.4 Run `openspec validate implement-figma-web-app-screens --strict` before marking implementation complete.
+- [x] 6.4 Run `openspec validate implement-figma-web-app-screens --strict` before marking implementation complete.
