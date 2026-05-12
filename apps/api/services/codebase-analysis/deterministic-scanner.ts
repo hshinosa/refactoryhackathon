@@ -16,7 +16,7 @@ export interface DeterministicScannerDependencies {
   dependencyScanner: DependencyScannerContract;
 }
 
-export class DeterministicScannerStub implements DeterministicScannerContract {
+export class DeterministicScanner implements DeterministicScannerContract {
   constructor(private readonly deps: DeterministicScannerDependencies) {}
 
   async scan(input: DeterministicScannerInput): Promise<RawScanResult> {
@@ -32,7 +32,6 @@ export class DeterministicScannerStub implements DeterministicScannerContract {
       configCandidates: folderScan.configCandidates,
     });
 
-    // TODO(task-5.1): Replace placeholder mapping with deterministic config detection output.
     return {
       projectId: input.projectId,
       fileCount: folderScan.fileTree.filter((entry) => entry.kind === 'file').length,
@@ -42,8 +41,14 @@ export class DeterministicScannerStub implements DeterministicScannerContract {
         type: candidate.type,
       })),
       dependencies: dependencyScan.dependencies,
+      filePaths: folderScan.fileTree
+        .filter((entry) => entry.kind === 'file')
+        .map((entry) => entry.path)
+        .sort((a, b) => a.localeCompare(b)),
       excludedPaths: folderScan.excludedPaths,
       scanDuration: Date.now() - startedAt,
     };
   }
 }
+
+export class DeterministicScannerStub extends DeterministicScanner {}

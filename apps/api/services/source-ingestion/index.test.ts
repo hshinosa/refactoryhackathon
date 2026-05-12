@@ -3,16 +3,24 @@ import os from 'node:os';
 import path from 'node:path';
 
 import AdmZip from 'adm-zip';
+import simpleGit from 'simple-git';
 
 import {
   createTempSourcePaths,
   PrivateRepositoryClonePreparationService,
+  cloneGitHubRepositoryToTempStorage,
   cleanupSourcePath,
   extractZipToTempStorage,
   isCleanupExpired,
 } from './index';
 
+jest.mock('simple-git', () => jest.fn());
+
 describe('source-ingestion temp lifecycle', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   it('creates predictable temp source paths under the configured root', () => {
     const paths = createTempSourcePaths({ projectId: 'project-1', sourceType: 'zip' });
 
@@ -92,5 +100,27 @@ describe('source-ingestion temp lifecycle', () => {
 
     expect(stored.resolvedFrom).toBe('stored');
     expect(stored.resolvedPAT).toBe('ghp_stored');
+  });
+
+  it('clones private repositories without embedding PATs in clone URLs', async () => {
+    const clone = jest.fn().mockResolvedValue(undefined);
+    const env = jest.fn().mockReturnValue({ clone });
+    jest.mocked(simpleGit).mockReturnValue({ env } as never);
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-wiki-clone-'));
+
+    await cloneGitHubRepositoryToTempStorage({
+      repositoryUrl: 'https://github.com/octocat/private-repo',
+      outputPath: path.join(tempDir, 'repo'),
+      pat: 'ghp_secret_token',
+    });
+
+    expect(clone).toHaveBeenCalledWith('https://github.com/octocat/private-repo', path.join(tempDir, 'repo'), [
+      '--depth',
+      '1',
+    ]);
+    expect(JSON.stringify(clone.mock.calls)).not.toContain('ghp_secret_token');
+    expect(JSON.stringify(env.mock.calls)).toContain('GIT_ASKPASS');
+    expect(JSON.stringify(env.mock.calls)).not.toContain('ghp_secret_token');
   });
 });

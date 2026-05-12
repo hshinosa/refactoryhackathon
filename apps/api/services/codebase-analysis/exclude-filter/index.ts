@@ -14,9 +14,13 @@ const DEFAULT_EXCLUDE_PATTERNS = [
   'dist',
   'build',
   'coverage',
+  '.turbo',
+  '.cache',
+  'tmp',
+  'temp',
 ] as const;
 
-export class StandardExcludeFilterStub implements ExcludeFilterContract {
+export class StandardExcludeFilter implements ExcludeFilterContract {
   private readonly patterns: readonly string[];
 
   constructor(options: ExcludeFilterOptions = {}) {
@@ -24,11 +28,14 @@ export class StandardExcludeFilterStub implements ExcludeFilterContract {
   }
 
   shouldExcludePath(path: string): boolean {
-    // TODO(task-5.2): Replace simple substring checks with normalized segment-based matching.
-    return this.patterns.some((pattern) => path.includes(pattern));
+    const normalized = path.replace(/\\/g, '/');
+    const segments = normalized.split('/').filter(Boolean);
+    return this.patterns.some((pattern) => segments.includes(pattern));
   }
 
   listDefaultExcludes(): readonly string[] {
     return this.patterns;
   }
 }
+
+export class StandardExcludeFilterStub extends StandardExcludeFilter {}

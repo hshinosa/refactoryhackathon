@@ -1,7 +1,9 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
 import AdmZip from 'adm-zip';
+import simpleGit from 'simple-git';
 
 import { getBackendConfig } from '../../config';
 import type {
@@ -10,6 +12,7 @@ import type {
   IngestionJob,
   UserPATStorageContract,
 } from '../../types';
+import { InaccessibleRepositoryError } from '../../utils';
 
 import { validateGitHubRepositoryIntake } from '../project-intake';
 
@@ -54,6 +57,10 @@ export class PrivateRepositoryClonePreparationService implements PrivateReposito
       userId: input.userId,
       patId: input.storedPatId,
     });
+
+    if (input.storedPatId && !resolved) {
+      throw new InaccessibleRepositoryError('Repository is not accessible with the provided or stored credentials');
+    }
 
     if (!resolved) {
       return {
@@ -104,6 +111,58 @@ export async function extractZipToTempStorage(input: {
 
 export async function cleanupSourcePath(tempPath: string): Promise<void> {
   await fs.rm(tempPath, { recursive: true, force: true });
+}
+
+export async function cloneGitHubRepositoryToTempStorage(input: {
+  repositoryUrl: string;
+  outputPath: string;
+  pat?: string;
+}): Promise<void> {
+  const credentials = input.pat ? await createGitAskPassEnvironment(input.pat) : null;
+  await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+  try {
+    const git = credentials ? simpleGit().env(credentials.env) : simpleGit();
+    await git.clone(input.repositoryUrl, input.outputPath, ['--depth', '1']);
+  } catch {
+    throw new InaccessibleRepositoryError('Repository is not accessible with the provided or stored credentials');
+  } finally {
+    if (credentials) {
+      await fs.rm(credentials.rootPath, { recursive: true, force: true });
+    }
+  }
+}
+
+async function createGitAskPassEnvironment(pat: string): Promise<{ env: Record<string, string>; rootPath: string }> {
+  const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-wiki-git-askpass-'));
+  const tokenPath = path.join(rootPath, 'token');
+  const askPassPath = path.join(rootPath, 'askpass.sh');
+  await fs.writeFile(tokenPath, pat, { mode: 0o600 });
+  await fs.writeFile(
+    askPassPath,
+    [
+      '#!/bin/sh',
+      'case "$1" in',
+      '  *Username*) printf "%s" "x-access-token" ;;',
+      `  *Password*) cat ${shellQuote(tokenPath)} ;;`,
+      '  *) printf "%s" "" ;;',
+      'esac',
+      '',
+    ].join('\n'),
+    { mode: 0o700 },
+  );
+
+  return {
+    rootPath,
+    env: {
+      ...process.env,
+      GIT_ASKPASS: askPassPath,
+      GIT_TERMINAL_PROMPT: '0',
+    } as Record<string, string>,
+  };
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 export function isCleanupExpired(cleanupAt: number, now = Date.now()): boolean {

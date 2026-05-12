@@ -8,6 +8,11 @@ import {
   validateGitHubRepositoryIntake,
   validateZipUploadIntake,
 } from './index';
+import {
+  InvalidGitHubRepositoryUrlError,
+  InvalidPATError,
+  InvalidZipUploadError,
+} from '../../utils';
 
 describe('project-intake validation and PAT storage', () => {
   it('accepts a ZIP intake at or below the configured size limit', () => {
@@ -27,6 +32,24 @@ describe('project-intake validation and PAT storage', () => {
     expect(() => validateGitHubRepositoryIntake({ repositoryUrl: 'https://gitlab.com/foo/bar' })).toThrow(
       'Invalid GitHub repository URL',
     );
+  });
+
+  it('classifies invalid ZIP, repository URL, and PAT failures for API error mapping', async () => {
+    expect(() => validateZipUploadIntake({
+      fileName: 'project.txt',
+      fileSizeBytes: 128,
+    })).toThrow(InvalidZipUploadError);
+
+    expect(() => validateGitHubRepositoryIntake({ repositoryUrl: 'https://gitlab.com/foo/bar' })).toThrow(
+      InvalidGitHubRepositoryUrlError,
+    );
+
+    await expect(
+      storePATForUser({
+        userId: 'user-invalid-pat',
+        pat: '   ',
+      }),
+    ).rejects.toThrow(InvalidPATError);
   });
 
   it('stores, resolves, and deletes PAT per user without exposing plaintext in listProjects flow', async () => {

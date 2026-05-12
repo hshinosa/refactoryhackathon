@@ -9,6 +9,7 @@ import {
 } from 'node:crypto';
 
 import { getBackendConfig } from '../../config';
+import { InvalidGitHubRepositoryUrlError, InvalidPATError, InvalidZipUploadError } from '../../utils';
 import type {
   CreateProjectInput,
   DeleteUserPATInput,
@@ -52,19 +53,19 @@ export function validateZipUploadIntake(input: ZipUploadIntakeInput): ValidatedZ
   const normalizedFileName = input.fileName.trim();
 
   if (!normalizedFileName) {
-    throw new Error('ZIP file name is required');
+    throw new InvalidZipUploadError('ZIP file name is required');
   }
 
   if (!normalizedFileName.toLowerCase().endsWith('.zip')) {
-    throw new Error('Only .zip files are accepted');
+    throw new InvalidZipUploadError('Only .zip files are accepted');
   }
 
   if (!Number.isFinite(input.fileSizeBytes) || input.fileSizeBytes <= 0) {
-    throw new Error('ZIP file size must be a positive number');
+    throw new InvalidZipUploadError('ZIP file size must be a positive number');
   }
 
   if (input.fileSizeBytes > config.upload.maxZipSize) {
-    throw new Error(`ZIP file exceeds maximum allowed size of ${config.upload.maxZipSize} bytes`);
+    throw new InvalidZipUploadError(`ZIP file exceeds maximum allowed size of ${config.upload.maxZipSize} bytes`);
   }
 
   return {
@@ -78,11 +79,11 @@ export function validateGitHubRepositoryIntake(input: GitHubRepositoryIntakeInpu
   const normalizedUrl = input.repositoryUrl.trim();
 
   if (!normalizedUrl) {
-    throw new Error('GitHub repository URL is required');
+    throw new InvalidGitHubRepositoryUrlError('GitHub repository URL is required');
   }
 
   if (!GITHUB_REPOSITORY_URL_PATTERN.test(normalizedUrl)) {
-    throw new Error('Invalid GitHub repository URL');
+    throw new InvalidGitHubRepositoryUrlError('Invalid GitHub repository URL');
   }
 
   return {
@@ -164,7 +165,7 @@ export async function storePATForUser(input: StoreUserPATInput): Promise<{ patId
   }
 
   if (!input.pat.trim()) {
-    throw new Error('PAT is required');
+    throw new InvalidPATError('PAT is required');
   }
 
   const now = new Date().toISOString();
