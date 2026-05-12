@@ -48,15 +48,15 @@
 
 ## 8. Semantic search preparation
 
-- [ ] 8.1 Implement embedding generation from generated docs and codebase summary
-- [ ] 8.2 Implement vector index storage/update flow
-- [ ] 8.3 Implement retrieval contract for future AI chat grounded on docs and vector search
+- [x] 8.1 Implement embedding generation from generated docs and codebase summary
+- [x] 8.2 Implement vector index storage/update flow
+- [x] 8.3 Implement retrieval contract for future AI chat grounded on docs and vector search
 
 ## 9. Automation and regenerate flow
 
-- [ ] 9.1 Implement backend regenerate-docs endpoint for an existing project
-- [ ] 9.2 Implement authorization and ownership checks for regenerate requests
-- [ ] 9.3 Implement GitHub Actions-compatible workflow trigger contract for regenerate docs
+- [x] 9.1 Implement backend regenerate-docs endpoint for an existing project
+- [x] 9.2 Implement authorization and ownership checks for regenerate requests
+- [x] 9.3 Implement GitHub Actions-compatible workflow trigger contract for regenerate docs
 
 ## 10. Error handling and backend readiness
 
