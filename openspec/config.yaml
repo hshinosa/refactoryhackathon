@@ -1,5 +1,24 @@
 schema: spec-driven
 
+context: |
+  Project: Codebase Wiki.
+  Purpose: Generate GitBook-like multi-page documentation from uploaded ZIP files or GitHub repositories.
+  Current implementation plan is backend-first while UI is handled separately.
+  Stack decisions already made:
+  - Frontend: Next.js / React
+  - Backend: Next.js API routes / Node.js
+  - Auth: NextAuth/Auth.js
+  - GitHub import: git clone
+  - AI provider: OpenAI-compatible API adapter
+  - PAT handling: encrypted file storage per user
+  - Temporary source storage: ephemeral /tmp with cleanup TTL
+  - Output: multi-page Markdown docs + generated sidebar + history
+  - Semantic search prep: embeddings/vector index for future chat
+  Repository conventions:
+  - OpenSpec is the primary source of truth for active changes.
+  - ADR and C4 must stay aligned with implementation.
+  - Active backend change: build-codebase-wiki-backend-mvp.
+
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 # Add your tech stack, conventions, style guides, domain knowledge, etc.
@@ -18,3 +37,17 @@ schema: spec-driven
 #       - Always include a "Non-goals" section
 #     tasks:
 #       - Break tasks into chunks of max 2 hours
+
+rules:
+  proposal:
+    - Keep the proposal backend-first when the active change is backend-focused.
+    - State clearly whether a feature is MVP, nice-to-have, or future scope.
+    - Reference auth, PAT, docs history, semantic search, and GitHub Actions only when relevant to the change.
+  design:
+    - Explain how the change aligns with existing ADR and C4 documents.
+    - Call out security handling for PAT, temporary source storage, and AI context minimization whenever those are touched.
+    - Distinguish clearly between current MVP flow and future extensions.
+  tasks:
+    - Order tasks by backend dependency, starting from auth/session and source intake before AI and automation.
+    - Keep tasks small enough to complete in one focused session.
+    - Ensure task wording can be checked directly against implementation progress.
