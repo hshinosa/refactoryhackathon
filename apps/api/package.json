@@ -1,0 +1,24 @@
+{
+  "name": "@codebase-wiki/api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "openai": "^4.28.0",
+    "simple-git": "^3.22.0",
+    "adm-zip": "^0.5.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/adm-zip": "^0.5.5",
+    "typescript": "^5.4.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0"
+  }
+}
