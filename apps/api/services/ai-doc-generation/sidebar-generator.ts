@@ -13,3 +13,13 @@ export class SidebarGeneratorStub implements SidebarGenerationContract {
     }));
   }
 }
+
+export class FlatSidebarGeneratorStub implements SidebarGenerationContract {
+  generateSidebar(input: { projectId: string; pages: GeneratedDocsPage[] }): GeneratedSidebarItem[] {
+    return input.pages.map((page) => ({
+      title: page.title,
+      slug: page.slug,
+      children: [],
+    }));
+  }
+}

@@ -25,6 +25,7 @@ export class InMemoryDocumentationStoreStub implements DocumentationStoreContrac
       projectId: current.projectId,
       pages: current.pages,
       sidebar: current.sidebar,
+      secondarySidebar: current.secondarySidebar,
       generatedAt: current.generatedAt,
       version: current.version,
     };

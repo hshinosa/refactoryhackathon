@@ -1,5 +1,6 @@
 import type { GeneratedDocsPage } from '../../types';
 import OpenAI from 'openai';
+import { AIProviderFailureError } from '../../utils';
 
 export interface AIGenerationMessage {
   role: 'system' | 'user' | 'assistant';
@@ -35,12 +36,17 @@ export class OpenAICompatibleAIClient implements OpenAICompatibleAIClientContrac
   ) {}
 
   async generateText(input: AIGenerationRequest): Promise<AIGenerationResponse> {
-    const response = await this.client.chat.completions.create({
-      model: input.model,
-      messages: input.messages,
-      temperature: input.temperature,
-      max_tokens: input.maxTokens,
-    });
+    let response: Awaited<ReturnType<typeof this.client.chat.completions.create>>;
+    try {
+      response = await this.client.chat.completions.create({
+        model: input.model,
+        messages: input.messages,
+        temperature: input.temperature,
+        max_tokens: input.maxTokens,
+      });
+    } catch {
+      throw new AIProviderFailureError('AI provider request failed');
+    }
 
     return {
       projectId: input.projectId,

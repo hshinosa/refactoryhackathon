@@ -34,6 +34,7 @@ export interface AIDocGenerationPreparedArtifacts {
   modelOutput: AIGenerationResponse;
   pages: GeneratedDocsPage[];
   sidebar: GeneratedSidebarItem[];
+  secondarySidebar?: GeneratedSidebarItem;
 }
 
 export interface AIDocGenerationServiceInput {
@@ -61,11 +62,13 @@ export async function runAIDocGenerationPipelineStub(input: {
   model: string;
   compactContext: string;
   suggestedDocStructure: string[];
+  maxPages?: number;
 }): Promise<AIDocGenerationPreparedArtifacts> {
   const prompt = input.pipeline.promptBuilder.buildPrompt({
     projectId: input.projectId,
     compactContext: input.compactContext,
     suggestedDocStructure: input.suggestedDocStructure,
+    maxPages: input.maxPages,
   });
 
   const modelInput: AIGenerationRequest = {
@@ -83,9 +86,10 @@ export async function runAIDocGenerationPipelineStub(input: {
     projectId: input.projectId,
     markdown: formattedMarkdown,
   });
+  const split = splitDocumentationSidebars(pages);
   const sidebar = input.pipeline.sidebarGenerator.generateSidebar({
     projectId: input.projectId,
-    pages,
+    pages: split.primaryPages,
   });
 
   // TODO(Wave 1 dependency): history retention behavior must be finalized
@@ -97,6 +101,7 @@ export async function runAIDocGenerationPipelineStub(input: {
     modelOutput,
     pages,
     sidebar,
+    secondarySidebar: split.secondarySidebar,
   };
 }
 
@@ -109,6 +114,7 @@ export function createAIDocGenerationService(input: AIDocGenerationServiceInput)
         model: input.model,
         compactContext: args.compactContext,
         suggestedDocStructure: input.suggestedDocStructure,
+        maxPages: Math.min(input.suggestedDocStructure.length || 6, 6),
       });
 
       const previousDocs = await input.docsStore.getCurrentDocs(args.projectId);
@@ -116,6 +122,7 @@ export function createAIDocGenerationService(input: AIDocGenerationServiceInput)
         projectId: args.projectId,
         pages: prepared.pages,
         sidebar: prepared.sidebar,
+        secondarySidebar: prepared.secondarySidebar,
         generatedAt: prepared.modelOutput.generatedAt,
         version: previousDocs ? previousDocs.version + 1 : 1,
       };
@@ -134,3 +141,37 @@ export * from './ai-provider-client';
 export * from './markdown-formatter';
 export * from './prompt-builder';
 export * from './sidebar-generator';
+
+const CANONICAL_SLUGS = new Set(['overview', 'architecture', 'api-reference', 'security']);
+
+function splitDocumentationSidebars(pages: GeneratedDocsPage[]): {
+  primaryPages: GeneratedDocsPage[];
+  secondarySidebar?: GeneratedSidebarItem;
+} {
+  const hasCanonicalDocs = ['overview', 'architecture', 'api-reference', 'security'].every((slug) =>
+    pages.some((page) => page.slug === slug),
+  );
+
+  if (!hasCanonicalDocs) {
+    return { primaryPages: pages };
+  }
+
+  const primaryPages = pages.filter((page) => CANONICAL_SLUGS.has(page.slug));
+  const featurePages = pages.filter((page) => !CANONICAL_SLUGS.has(page.slug));
+
+  return {
+    primaryPages,
+    secondarySidebar:
+      featurePages.length > 0
+        ? {
+            title: 'Features',
+            slug: 'features',
+            children: featurePages.map((page) => ({
+              title: page.title.replace(/^Implementation:\s*/i, ''),
+              slug: page.slug,
+              children: [],
+            })),
+          }
+        : undefined,
+  };
+}

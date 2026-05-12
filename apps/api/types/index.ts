@@ -25,6 +25,22 @@ export interface CreateProjectInput {
   sourceInput: string;
 }
 
+export interface ApiDataResponse<T> {
+  data: T;
+}
+
+export type ProjectsListResponse = ApiDataResponse<Project[]>;
+
+export type ProjectResponse = ApiDataResponse<Project>;
+
+export interface ProjectStatusSnapshot {
+  projectId: string;
+  status: Project['status'];
+  updatedAt: string;
+}
+
+export type ProjectStatusResponse = ApiDataResponse<ProjectStatusSnapshot>;
+
 export interface UserPAT {
   id: string;
   userId: string;
@@ -105,6 +121,7 @@ export interface RawScanResult {
     type: 'package.json' | 'tsconfig.json' | 'requirements.txt' | 'go.mod' | 'Gemfile' | 'pom.xml' | 'Cargo.toml' | 'other';
   }>;
   dependencies: Record<string, string>;
+  filePaths?: string[];
   excludedPaths: string[];
   scanDuration: number;
 }
@@ -126,6 +143,7 @@ export interface GeneratedDocs {
   projectId: string;
   pages: GeneratedDocsPage[];
   sidebar: GeneratedSidebarItem[];
+  secondarySidebar?: GeneratedSidebarItem;
   generatedAt: string;
   version: number;
 }
@@ -154,9 +172,12 @@ export interface RetrievedDocumentation {
   projectId: string;
   pages: GeneratedDocsPage[];
   sidebar: GeneratedSidebarItem[];
+  secondarySidebar?: GeneratedSidebarItem;
   generatedAt: string;
   version: number;
 }
+
+export type RetrievedDocumentationResponse = ApiDataResponse<RetrievedDocumentation>;
 
 export interface DocumentationStoreContract {
   saveCurrentDocs(input: GeneratedDocs): Promise<void>;
@@ -300,6 +321,8 @@ export interface RegenerateDocsEndpointRequest extends RegenerateDocsRequest {
 export interface RegenerateDocsEndpointResponse extends RegenerateDocsResponse {
   requestedAt: string;
 }
+
+export type RegenerateDocsApiResponse = ApiDataResponse<RegenerateDocsEndpointResponse>;
 
 export interface GitHubActionsTriggerRequest {
   projectId: string;
