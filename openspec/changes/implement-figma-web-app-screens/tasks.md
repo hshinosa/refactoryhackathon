@@ -23,11 +23,11 @@
 
 ## 4. Documentation Reader
 
-- [ ] 4.1 Implement documentation reader layout using Figma node `5:796` as the canonical base.
-- [ ] 4.2 Build generated sidebar navigation with project/version header, top-level nav, nested pages, and active state styling.
-- [ ] 4.3 Build article canvas with breadcrumbs, title, body content, featured diagram area, callouts, and previous/next pagination.
-- [ ] 4.4 Isolate documentation content and sidebar data into typed mock fixtures that can be replaced by backend output.
-- [ ] 4.5 Add optional wide-screen Ask Wiki affordance from Figma node `5:948` as hidden/disabled until backend support exists.
+- [x] 4.1 Implement documentation reader layout using Figma node `5:796` as the canonical base.
+- [x] 4.2 Build generated sidebar navigation with project/version header, top-level nav, nested pages, and active state styling.
+- [x] 4.3 Build article canvas with breadcrumbs, title, body content, featured diagram area, callouts, and previous/next pagination.
+- [x] 4.4 Isolate documentation content and sidebar data into typed mock fixtures that can be replaced by backend output.
+- [x] 4.5 Add optional wide-screen Ask Wiki affordance from Figma node `5:948` as hidden/disabled until backend support exists.
 
 ## 5. Asset and Integration Hygiene
 
@@ -39,5 +39,5 @@
 
 - [x] 6.1 Run LSP diagnostics on all changed web files.
 - [x] 6.2 Run `npm run build --workspace=apps/web` and resolve errors introduced by this change.
-- [ ] 6.3 Verify dashboard, auth, loading, and docs routes in the existing dev server with browser snapshots.
+- [x] 6.3 Verify dashboard, auth, loading, and docs routes in the existing dev server with browser snapshots.
 - [x] 6.4 Run `openspec validate implement-figma-web-app-screens --strict` before marking implementation complete.
