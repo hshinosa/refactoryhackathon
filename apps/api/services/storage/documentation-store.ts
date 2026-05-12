@@ -36,8 +36,10 @@ export class InMemoryDocumentationStoreStub implements DocumentationStoreContrac
   }): Promise<void> {
     if (input.previousDocs) {
       const currentHistory = docsHistoryByProject.get(input.previousDocs.projectId) ?? [];
-      currentHistory.push(input.previousDocs);
-      docsHistoryByProject.set(input.previousDocs.projectId, currentHistory);
+      if (!currentHistory.some((entry) => entry.projectId === input.previousDocs?.projectId && entry.version === input.previousDocs?.version)) {
+        currentHistory.push(input.previousDocs);
+        docsHistoryByProject.set(input.previousDocs.projectId, currentHistory);
+      }
     }
 
     currentDocsByProject.set(input.nextDocs.projectId, input.nextDocs);
