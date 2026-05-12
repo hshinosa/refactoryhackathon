@@ -26,11 +26,11 @@
 
 ## 5. Codebase analysis pipeline
 
-- [x] 5.1 Implement deterministic scanner for file tree traversal, config detection, and dependency extraction *(prep: contracts/stubs only)*
-- [x] 5.2 Implement exclude filter for standard non-essential folders and artifacts *(prep: contracts/stubs only)*
-- [x] 5.3 Implement agent enrichment spawner with structured prompt ([CONTEXT] + [GOAL] + [DOWNSTREAM] + [REQUEST]) *(prep: contracts/stubs only)*
-- [x] 5.4 Implement agent enrichment fallback strategy for tech stack inference and important file prioritization *(prep: contracts/stubs only)*
-- [x] 5.5 Implement compact context builder for AI generation (max 2000 tokens) *(prep: contracts/stubs only)*
+- [x] 5.1 Implement deterministic scanner for file tree traversal, config detection, and dependency extraction
+- [x] 5.2 Implement exclude filter for standard non-essential folders and artifacts
+- [x] 5.3 Implement OpenAI-compatible agent enrichment spawner with structured prompt ([CONTEXT] + [GOAL] + [DOWNSTREAM] + [REQUEST]) and parsed JSON response validation
+- [x] 5.4 Implement agent enrichment fallback strategy for tech stack inference and important file prioritization
+- [x] 5.5 Implement compact context builder for AI generation (max 2000 tokens)
 
 ## 6. AI documentation generation
 
@@ -60,6 +60,6 @@
 
 ## 10. Error handling and backend readiness
 
-- [ ] 10.1 Implement backend error responses for invalid ZIP, invalid GitHub URL, inaccessible repo, invalid PAT, and AI failures
-- [ ] 10.2 Add backend logging rules that avoid exposing PAT or raw sensitive source data
-- [ ] 10.3 Verify backend contracts required by the UI for source input, status polling, docs retrieval, and regenerate flow
+ - [x] 10.1 Implement backend error responses for invalid ZIP, invalid GitHub URL, inaccessible repo, invalid PAT, and AI failures
+ - [x] 10.2 Add backend logging rules that avoid exposing PAT or raw sensitive source data
+ - [x] 10.3 Verify backend contracts required by the UI for source input, status polling, docs retrieval, and regenerate flow
