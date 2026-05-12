@@ -6,3 +6,6 @@ dist/
 .DS_Store
 *.log
 .sisyphus/
+*.tsbuildinfo
+generated-images/
+experiments/*-poc/
