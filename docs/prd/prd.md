@@ -17,6 +17,8 @@ Codebase Wiki adalah website untuk membuat dokumentasi project software secara o
 
 Produk ini ditujukan untuk membantu developer, tech lead, project manager, dan anggota tim baru memahami codebase lebih cepat tanpa harus menulis dokumentasi manual dari awal.
 
+Selain dokumentasi, aplikasi juga mendukung chat berbasis project, pencarian dokumen, job logs terminal-style, dan integrasi MCP read-only untuk konsumsi coding agent.
+
 ## Problem Statement
 
 Banyak tim software tidak sempat membuat dokumentasi project karena dokumentasi manual memakan waktu, cepat outdated, dan sering kalah prioritas dibanding coding. Akibatnya, onboarding developer baru menjadi lambat, knowledge tersebar di beberapa orang saja, dan stakeholder sulit memahami gambaran teknis project.
@@ -43,7 +45,6 @@ Membantu tim developer mengotomatisasi proses pembuatan dan pemeliharaan dokumen
 
 - Menambahkan integrasi GitHub/GitLab agar dokumentasi dapat dibuat langsung dari repository project.
 - Menyediakan AI Chat Assistant yang dapat menjawab pertanyaan terkait codebase.
-- Menyediakan integrasi GitHub Actions agar dokumentasi dapat diperbarui otomatis dari workflow repository.
 - Mendukung lebih banyak framework dan bahasa pemrograman.
 
 ### Long-Term Goals
@@ -66,8 +67,10 @@ Membantu tim developer mengotomatisasi proses pembuatan dan pemeliharaan dokumen
 - Scan struktur folder, dependency, dan file penting.
 - Deteksi framework, library, dan tech stack utama.
 - Generate dokumentasi project otomatis dengan AI.
-- AI Chat untuk project.
-- Integrasi GitHub Actions untuk trigger update dokumentasi otomatis.
+- AI Chat untuk project berbasis docs yang sudah digenerate.
+- Search Docs dan Ask Wiki berbasis semantic retrieval.
+- MCP read-only untuk project documentation.
+- Job logs terminal-style selama proses import dan generate.
 - Tampilkan hasil dokumentasi dalam format wiki/Markdown.
 - Tampilkan loading/progress state selama proses analisis.
 - Tampilkan error handling jika proses gagal.
@@ -82,13 +85,15 @@ Fokus utama hackathon:
 - Scan project structure.
 - Generate documentation dengan AI.
 - Render hasil wiki multi-page seperti GitBook dengan sidebar otomatis.
+- Search docs, Ask Wiki, dan MCP read-only untuk project docs.
+- Tampilkan job logs selama proses berjalan.
 
 ### Out of Scope untuk MVP
 
 - Database kompleks.
 - Realtime collaboration.
-- Versioning system dokumentasi.
 - Diagram generation otomatis.
+- GitHub Actions integration.
 
 ## User Stories
 
@@ -119,6 +124,8 @@ Fokus utama hackathon:
 ### Epic 5 — AI Assistance
 
 - Sebagai developer, saya ingin memahami project menggunakan chatbot agar saya dapat bertanya langsung tentang codebase.
+- Sebagai developer, saya ingin mencari bagian dokumentasi tertentu agar saya bisa menemukan jawaban lebih cepat.
+- Sebagai developer, saya ingin menggunakan MCP read-only untuk menghubungkan wiki ke coding agent.
 
 ### Epic 6 — Automation
 
@@ -187,7 +194,10 @@ Minimal status untuk MVP:
 - generating documentation
 - completed
 
-**FR-009 — Error Handling**  
+**FR-009 — Job Logs**  
+Sistem harus menampilkan job logs terminal-style untuk fase import, analisis, generasi, cleanup, completed, dan failed.
+
+**FR-010 — Error Handling**  
 Sistem harus menampilkan pesan error yang jelas jika:
 - upload gagal
 - GitHub URL tidak valid
@@ -197,29 +207,29 @@ Sistem harus menampilkan pesan error yang jelas jika:
 - extract ZIP gagal
 - AI gagal generate dokumentasi
 
-**FR-010 — Sample Project for Demo**  
+**FR-011 — Sample Project for Demo**  
 Sistem sebaiknya menyediakan atau menyiapkan sample project agar demo hackathon dapat berjalan cepat dan stabil.
 
-**FR-011 — Authentication**  
+**FR-012 — Authentication**  
 Sistem harus menyediakan Sign In/Sign Up menggunakan NextAuth/Auth.js agar project, PAT, dan generated docs dapat dikaitkan ke user.
 
-**FR-012 — Multi Project Support**  
+**FR-013 — Multi Project Support**  
 Sistem dapat memungkinkan user memasukkan lebih dari satu project agar dokumentasi dapat dikelola per project.
 
-**FR-013 — AI Chat Assistant**  
-Sistem dapat menyediakan AI Chat Assistant untuk menjawab pertanyaan user terkait isi codebase dan dokumentasi project.
+**FR-014 — AI Chat Assistant**  
+Sistem dapat menyediakan AI Chat Assistant untuk menjawab pertanyaan user terkait isi codebase dan dokumentasi project, dengan jawaban grounded pada docs dan vector index.
 
-**FR-014 — Private Repository Access via PAT**  
+**FR-015 — Private Repository Access via PAT**  
 Sistem harus mendukung akses ke private GitHub repository menggunakan Personal Access Token (PAT) yang diberikan user secara aman untuk kebutuhan read-only repository access. PAT disimpan per user dalam encrypted file storage dan hanya user pemilik yang dapat revoke/delete PAT tersebut.
-
-**FR-015 — GitHub Actions Integration**  
-Sistem dapat menyediakan GitHub Actions workflow template yang memanggil endpoint regenerate docs agar dokumentasi dapat diperbarui otomatis dari workflow repository.
 
 **FR-016 — Generated Docs Storage & History**  
 Sistem harus menyimpan current generated docs sebagai multi-page Markdown output. Jika docs digenerate ulang, current docs dapat di-overwrite, tetapi riwayat generation/history tetap disimpan.
 
 **FR-017 — Semantic Codebase Search**  
 Sistem dapat membuat embedding/vector index dari ringkasan codebase dan generated docs agar AI Chat dapat menjawab pertanyaan menggunakan semantic codebase search.
+
+**FR-018 — MCP Integration**  
+Sistem dapat menyediakan MCP read-only untuk search docs, ask wiki, get page, dan source evidence.
 
 ### Non-Functional Requirements
 

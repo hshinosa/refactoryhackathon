@@ -9,3 +9,4 @@ dist/
 *.tsbuildinfo
 generated-images/
 experiments/*-poc/
+deploy/k8s/secret.yaml

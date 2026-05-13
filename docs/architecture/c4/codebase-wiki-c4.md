@@ -4,7 +4,7 @@ Dokumen ini merancang arsitektur awal Codebase Wiki berdasarkan `docs/prd/prd.md
 
 ## Scope
 
-Codebase Wiki adalah platform dokumentasi otomatis berbasis AI. User dapat sign in, membuat project, lalu memasukkan source project melalui upload ZIP atau GitHub repository URL. Untuk private repository, user dapat memberikan GitHub Personal Access Token (PAT) dengan permission minimum read-only. PAT disimpan per user dalam encrypted file storage agar dapat dipakai untuk clone ulang dan regenerate docs. Sistem menganalisis struktur codebase, dependency, dan tech stack untuk menghasilkan dokumentasi multi-page wiki/Markdown seperti GitBook dengan sidebar otomatis.
+Codebase Wiki adalah platform dokumentasi otomatis berbasis AI. User dapat sign in, membuat project, lalu memasukkan source project melalui upload ZIP atau GitHub repository URL. Untuk private repository, user dapat memberikan GitHub Personal Access Token (PAT) dengan permission minimum read-only. PAT disimpan per user dalam encrypted file storage agar dapat dipakai untuk clone ulang dan regenerate docs. Sistem menganalisis struktur codebase, dependency, dan tech stack untuk menghasilkan dokumentasi multi-page wiki/Markdown seperti GitBook dengan sidebar otomatis, serta menyediakan search docs, Ask Wiki, MCP read-only, job logs, dan regenerate flow.
 
 ## C1 - System Context
 
@@ -33,7 +33,7 @@ Person(newDev, "Developer Baru", "Onboarding dan memahami codebase")
 Person(techLead, "Tech Lead", "Menjaga dokumentasi tetap relevan")
 Person(pm, "Project Manager / Stakeholder", "Membaca gambaran project")
 
-System(codebaseWiki, "Codebase Wiki", "Generate dokumentasi project otomatis berbasis AI")
+System(codebaseWiki, "Codebase Wiki", "Generate dokumentasi project otomatis berbasis AI, search, Ask Wiki, MCP, dan job logs")
 System_Ext(github, "GitHub", "Public/private repositories dan GitHub Actions")
 System_Ext(aiProvider, "OpenAI-compatible AI Provider", "Generate docs, embeddings, and AI chat")
 System_Ext(authProvider, "NextAuth/Auth Provider", "Sign In / Sign Up")
@@ -52,11 +52,13 @@ Rel(codebaseWiki, authProvider, "Authenticates users via sign in / sign up")
 ### Containers
 
 - **Web App**: UI untuk sign in, create project, input source, melihat status proses, membaca wiki multi-page, dan AI chat.
-- **API / Orchestrator**: Backend utama untuk validasi input, job lifecycle, koordinasi ingestion/analyzer/generator, dan delivery hasil.
+- **API / Orchestrator**: Backend utama untuk validasi input, job lifecycle, koordinasi ingestion/analyzer/generator, delivery hasil, search, chat, MCP, dan logs.
 - **Source Ingestion Worker**: Mengambil source project dari ZIP atau GitHub repository dan menulisnya ke temporary storage.
 - **Code Analyzer**: Membaca source dari temporary storage, memfilter file relevan, membaca dependency, dan mendeteksi tech stack.
 - **AI Documentation Service**: Menyusun compact context, memanggil AI Provider, lalu menghasilkan docs, sidebar, history, dan embeddings.
 - **AI Chat Service**: Menjawab pertanyaan user berdasarkan generated docs, metadata, dan vector search; tidak membaca raw source secara langsung.
+- **MCP Service**: Menyediakan tool read-only untuk search docs, ask wiki, get page, dan get source evidence.
+- **Job Log Service**: Menyimpan dan mengalirkan job logs terminal-style per project.
 - **Documentation Store**: Persistent store untuk current docs, docs history, generated sidebar, metadata project, dan job status.
 - **Temporary Source Storage**: Ephemeral storage untuk ZIP, extracted source, dan cloned repository sebelum analisis.
 - **Encrypted PAT File Store**: Secure credential store untuk PAT terenkripsi per user.
@@ -74,6 +76,7 @@ Lifecycle job utama yang harus didukung sistem:
 - `extracting`
 - `scanning`
 - `generating`
+- `cleaning-up`
 - `completed`
 - `failed`
 
@@ -95,6 +98,8 @@ System_Boundary(system, "Codebase Wiki") {
   Container(analyzer, "Code Analyzer", "Node.js", "Scan folder, dependency, tech stack")
   Container(docGen, "AI Documentation Service", "Node.js", "Build context, generate multi-page docs, sidebar, history")
   Container(chat, "AI Chat Service", "Node.js", "Jawab pertanyaan user terkait codebase")
+  Container(mcp, "MCP Service", "Node.js", "Search docs, ask wiki, get page, get source evidence")
+  Container(logs, "Job Log Service", "Node.js", "Terminal-style logs dan streaming status")
   ContainerDb(docStore, "Documentation Store", "Database / File Storage", "Current docs, history, sidebar, metadata, status")
   ContainerDb(tempStorage, "Temporary Source Storage", "Ephemeral storage", "ZIP, extracted files, cloned repos")
   ContainerDb(patStore, "Encrypted PAT File Store", "Encrypted file storage", "PAT per user for clone/regenerate")
@@ -122,6 +127,9 @@ Rel(web, chat, "Ajukan pertanyaan")
 Rel(chat, docStore, "Ambil docs/context")
 Rel(chat, vectorStore, "Semantic codebase search")
 Rel(chat, aiProvider, "Generate jawaban")
+Rel(mcp, docStore, "Ambil docs")
+Rel(mcp, vectorStore, "Semantic codebase search")
+Rel(logs, docStore, "Simpan job status/log metadata")
 Rel(github, actions, "Trigger workflow/webhook")
 Rel(actions, api, "Request regenerate docs")
 ```
@@ -132,7 +140,7 @@ Rel(actions, api, "Request regenerate docs")
 
 - **Input Controller**: Menerima sign in session, create project, upload ZIP, GitHub URL, PAT, dan request chat.
 - **Input Validator**: Validasi format ZIP, batas 50MB, URL GitHub, akses repository, dan PAT permission.
-- **Job Coordinator**: Mengatur status proses: uploading, cloning, extracting, scanning, generating, completed, failed.
+- **Job Coordinator**: Mengatur status proses: uploading, cloning, extracting, scanning, generating, cleaning-up, completed, failed.
 - **Project Metadata Manager**: Menyimpan metadata project, tech stack, dependency, docs history, sidebar, dan status generation.
 - **Error Handler**: Menangani upload gagal, URL invalid, repository inaccessible, PAT invalid, extract gagal, dan AI failure.
 
@@ -166,6 +174,14 @@ Rel(actions, api, "Request regenerate docs")
 - **Context Retriever**: Mengambil dokumentasi, metadata, dan hasil semantic search yang relevan.
 - **Chat Prompt Builder**: Membuat prompt untuk menjawab pertanyaan berdasarkan context.
 - **Chat Response Formatter**: Merapikan jawaban AI agar mudah dibaca user.
+
+### MCP Service Components
+
+- **Token Service**: Membuat, memverifikasi, dan merevoke token MCP project-scoped.
+- **Docs Search Tool**: Mengembalikan hasil search docs berbasis retrieval.
+- **Ask Wiki Tool**: Menjawab pertanyaan grounded dari docs + vector index.
+- **Page Retrieval Tool**: Mengambil halaman docs tertentu.
+- **Source Evidence Tool**: Mengambil evidence file untuk halaman docs.
 
 ## C4 - Code Level
 
