@@ -1,6 +1,8 @@
 'use client';
 
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { signOut } from 'next-auth/react';
+import Link from 'next/link';
 import { AppShell } from '@/components/ui/AppShell';
 import { Callout } from '@/components/ui/Callout';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -47,6 +49,20 @@ function Chevron() {
 }
 
 function DocsSidebar({ model }: { model: DocsReaderModel }) {
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [profileOpen]);
+
   return (
     <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-[#080f17] lg:block">
       <div className="sticky top-16 flex h-[calc(100vh-64px)] flex-col">
@@ -66,15 +82,78 @@ function DocsSidebar({ model }: { model: DocsReaderModel }) {
             <DocsSidebarNav items={model.sidebar} />
           </div>
         </nav>
-        <div className="border-t border-white/10 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white">
-              A
+        <div className="border-t border-white/10 px-4 py-4">
+          <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-200">Project actions</p>
+            <div className="mt-3 space-y-2">
+              <Link
+                href="/dashboard"
+                className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-left transition hover:border-violet-300/40 hover:bg-white/[0.05]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[#d8dbff]">
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M3 7h14M3 10h14M3 13h14" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-white">Switch Project</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">Back to dashboard and open previous analyses.</span>
+                </span>
+              </Link>
+              <Link
+                href="/dashboard?source=git-url"
+                className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-left transition hover:border-violet-300/40 hover:bg-white/[0.05]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-[#d8dbff]">
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M10 4v12M4 10h12" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-white">New Analysis</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-400">Import another repository and generate a fresh wiki.</span>
+                </span>
+              </Link>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Agus</p>
-              <p className="text-xs text-[#a1a1aa]">Upgrade</p>
-            </div>
+          </div>
+
+          <div ref={profileRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setProfileOpen((prev) => !prev)}
+              className="flex w-full items-center gap-3 rounded-2xl px-2 py-1 text-left transition hover:bg-white/5"
+              aria-haspopup="true"
+              aria-expanded={profileOpen}
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-violet-300/30 via-sky-300/20 to-white/10 text-sm font-bold text-white">
+                {model.viewer.nameInitial}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">{model.viewer.displayName}</p>
+              </div>
+              <svg viewBox="0 0 20 20" className={cn('h-4 w-4 text-slate-400 transition-transform', profileOpen && 'rotate-180')} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="m5 8 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {profileOpen && (
+              <div className="absolute bottom-full left-0 mb-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-[#101827]/95 shadow-2xl backdrop-blur-xl" role="menu">
+                <div className="border-b border-white/10 px-4 py-3">
+                  <p className="text-sm font-semibold text-white">{model.viewer.displayName}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void signOut({ callbackUrl: '/auth/sign-in' })}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 transition hover:bg-white/5 hover:text-white"
+                  role="menuitem"
+                >
+                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <path d="M7 17H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h3M13 14l4-4-4-4M17 10H7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -155,15 +234,16 @@ function FileEvidenceTable({ model }: { model: DocsReaderModel }) {
 
 function RichBlock({ block }: { block: DocsReaderBlock }) {
   if (block.type === 'list') {
+    const ListTag = block.ordered ? 'ol' : 'ul';
     return (
-      <ul className="mt-4 space-y-2 text-base leading-8 text-[#a1a1aa]">
+      <ListTag className={cn('mt-4 space-y-2 text-base leading-8 text-[#a1a1aa]', block.ordered && 'list-decimal pl-6 marker:text-violet-300')}>
         {block.items.map((item) => (
-          <li key={item} className="flex gap-3">
-            <span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300" />
-            <span>{renderInlineCode(item)}</span>
+          <li key={item} className={cn(block.ordered ? 'pl-1' : 'flex gap-3')}>
+            {!block.ordered ? <span className="mt-3 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300" /> : null}
+            <span>{renderInlineFormatting(item)}</span>
           </li>
         ))}
-      </ul>
+      </ListTag>
     );
   }
 
@@ -193,7 +273,7 @@ function RichBlock({ block }: { block: DocsReaderBlock }) {
               <tr key={rowIndex}>
                 {row.map((cell, cellIndex) => (
                   <td key={`${rowIndex}-${cellIndex}`} className="px-4 py-3">
-                    {renderInlineCode(cell)}
+                    {renderInlineFormatting(cell)}
                   </td>
                 ))}
               </tr>
@@ -204,16 +284,20 @@ function RichBlock({ block }: { block: DocsReaderBlock }) {
     );
   }
 
-  return <p className="mt-3 text-base leading-8 text-[#a1a1aa]">{renderInlineCode(block.text)}</p>;
+  return <p className="mt-3 text-base leading-8 text-[#a1a1aa]">{renderInlineFormatting(block.text)}</p>;
 }
 
-function renderInlineCode(text: string) {
-  const parts = text.split(/(`[^`]+`)/g);
+function renderInlineFormatting(text: string) {
+  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
   return parts.map((part, index) =>
     part.startsWith('`') && part.endsWith('`') ? (
       <code key={index} className="rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 font-mono text-[0.92em] text-violet-200">
         {part.slice(1, -1)}
       </code>
+    ) : part.startsWith('**') && part.endsWith('**') ? (
+      <strong key={index} className="font-semibold text-white">
+        {part.slice(2, -2)}
+      </strong>
     ) : (
       <span key={index}>{part}</span>
     ),
@@ -253,6 +337,14 @@ type WikiChatMessage = {
   role: 'user' | 'assistant';
   content: string;
   sources: Array<{ reference: string; excerpt: string; pageSlug?: string; title?: string }>;
+};
+
+type AskWikiPanelCache = {
+  sessions: WikiChatSession[];
+  activeSessionId: string;
+  messages: WikiChatMessage[];
+  input: string;
+  collapsed: boolean;
 };
 
 type MCPToken = {
@@ -304,12 +396,12 @@ function ChatMessageContent({ content }: { content: string }) {
             {block.items.map((item) => (
               <li key={item} className="flex gap-2">
                 <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-violet-200/70" />
-                <span>{renderInlineCode(item)}</span>
+                <span>{renderInlineFormatting(item)}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p key={blockIndex}>{renderInlineCode(block.text)}</p>
+          <p key={blockIndex}>{renderInlineFormatting(block.text)}</p>
         ),
       )}
     </div>
@@ -420,7 +512,7 @@ function SearchDocsModal({
           ) : null}
           <div className="space-y-3">
             {viewResults.map((result) => (
-              <a
+              <Link
                 key={`${result.href}-${result.excerpt}`}
                 href={result.href}
                 className="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-violet-300/40 hover:bg-white/[0.06]"
@@ -432,7 +524,7 @@ function SearchDocsModal({
                 <p className="mt-2 line-clamp-3 text-sm leading-6 text-[#a1a1aa]">
                   <HighlightedSearchExcerpt parts={result.highlightParts} />
                 </p>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
@@ -650,20 +742,26 @@ function ArticleCanvas({ model }: { model: DocsReaderModel }) {
       </div>
 
       <div className="mt-12 grid gap-4 border-t border-white/10 pt-8 sm:grid-cols-2">
-        <a href={model.previous.href} className="rounded-2xl border border-white/10 p-5 text-[#a1a1aa] transition hover:bg-white/5 hover:text-white">
+        <Link href={model.previous.href} className="rounded-2xl border border-white/10 p-5 text-[#a1a1aa] transition hover:bg-white/5 hover:text-white">
           <span className="text-xs uppercase tracking-[0.16em] text-slate-500">Previous</span>
           <p className="mt-2 font-semibold">{model.previous.label}</p>
-        </a>
-        <a href={model.next.href} className="rounded-2xl border border-white/10 p-5 text-right text-[#a1a1aa] transition hover:bg-white/5 hover:text-white">
+        </Link>
+        <Link href={model.next.href} className="rounded-2xl border border-white/10 p-5 text-right text-[#a1a1aa] transition hover:bg-white/5 hover:text-white">
           <span className="text-xs uppercase tracking-[0.16em] text-slate-500">Next</span>
           <p className="mt-2 font-semibold">{model.next.label}</p>
-        </a>
+        </Link>
       </div>
     </article>
   );
 }
 
-function AskWikiPanel({ projectId }: { projectId: string }) {
+function AskWikiPanel({
+  projectId,
+  collapsed,
+}: {
+  projectId: string;
+  collapsed: boolean;
+}) {
   const [sessions, setSessions] = useState<WikiChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState('');
   const [messages, setMessages] = useState<WikiChatMessage[]>([]);
@@ -671,17 +769,29 @@ function AskWikiPanel({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'sending' | 'error'>('loading');
   const [error, setError] = useState('');
   const endRef = useRef<HTMLDivElement | null>(null);
+  const cacheKey = `codebase-wiki:ask-wiki-panel:${projectId}`;
 
   useEffect(() => {
     let cancelled = false;
+    let usedCache = false;
+    const cached = readAskWikiPanelCache(cacheKey);
+    if (cached) {
+      usedCache = true;
+      setSessions(cached.sessions);
+      setActiveSessionId(cached.activeSessionId);
+      setMessages(cached.messages);
+      setInput(cached.input);
+      setStatus('idle');
+    }
+
     async function loadSessions() {
       try {
-        setStatus('loading');
+        if (!usedCache) setStatus('loading');
         const data = await fetchData<{ sessions: WikiChatSession[] }>(`/api/projects/${projectId}/wiki-chat/sessions`);
         if (cancelled) return;
         setSessions(data.sessions);
         const latest = data.sessions[0];
-        if (latest) {
+        if (latest && (!usedCache || !cached?.activeSessionId)) {
           setActiveSessionId(latest.id);
           const messageData = await fetchData<{ messages: WikiChatMessage[] }>(`/api/projects/${projectId}/wiki-chat/sessions/${latest.id}/messages`);
           if (!cancelled) setMessages(messageData.messages);
@@ -698,7 +808,11 @@ function AskWikiPanel({ projectId }: { projectId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [cacheKey, projectId]);
+
+  useEffect(() => {
+    writeAskWikiPanelCache(cacheKey, { sessions, activeSessionId, messages, input, collapsed });
+  }, [activeSessionId, cacheKey, collapsed, input, messages, sessions]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' });
@@ -769,17 +883,20 @@ function AskWikiPanel({ projectId }: { projectId: string }) {
   }
 
   return (
-    <aside className="hidden w-[490px] shrink-0 border-l border-white/10 bg-[#050912] px-8 py-8 2xl:block" aria-label="Ask Wiki panel">
-      <div className="sticky top-24 flex h-[calc(100vh-120px)] flex-col">
+    <aside id="ask-wiki-panel" className={cn('sticky top-16 hidden h-[calc(100vh-64px)] shrink-0 self-start overflow-hidden border-l border-white/10 bg-[#050912] transition-[width] duration-200 xl:block', collapsed ? 'w-0 border-l-0 px-0 py-0' : 'w-[430px] px-6 py-6 2xl:w-[490px] 2xl:px-8')} aria-label="Ask Wiki panel">
+      {!collapsed ? (
+      <div className="flex h-full flex-col">
         <GlassCard className="flex min-h-0 flex-1 flex-col p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">Ask Wiki</p>
               <p className="mt-1 text-xs text-[#a1a1aa]">Grounded in indexed docs.</p>
             </div>
-            <button onClick={newChat} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-white/5 hover:text-white">
-              New chat
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={newChat} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-white/5 hover:text-white">
+                New chat
+              </button>
+            </div>
           </div>
 
           {sessions.length > 0 ? (
@@ -825,14 +942,14 @@ function AskWikiPanel({ projectId }: { projectId: string }) {
                     <div className="mt-4 border-t border-white/10 pt-2 text-[11px] leading-5 text-slate-500">
                       <span className="mr-2 uppercase tracking-[0.14em]">Sources</span>
                       {message.sources.slice(0, 4).map((source) => (
-                        <a
+                        <Link
                           key={source.reference}
                           href={source.pageSlug ? `/docs/${projectId}/${source.pageSlug}` : `/docs/${projectId}`}
                           className="mr-2 text-slate-400 underline decoration-white/10 underline-offset-4 transition hover:text-violet-100"
                           title={source.excerpt}
                         >
                           {source.title ?? source.reference.replace(/^vector-index:/, '')}
-                        </a>
+                        </Link>
                       ))}
                     </div>
                   ) : null}
@@ -862,13 +979,33 @@ function AskWikiPanel({ projectId }: { projectId: string }) {
           </div>
         </GlassCard>
       </div>
+      ) : null}
     </aside>
   );
+}
+
+function readAskWikiPanelCache(cacheKey: string): AskWikiPanelCache | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(cacheKey);
+    return raw ? (JSON.parse(raw) as AskWikiPanelCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAskWikiPanelCache(cacheKey: string, value: AskWikiPanelCache): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(cacheKey, JSON.stringify(value));
+  } catch {
+  }
 }
 
 export function DocsReader({ model }: { model?: DocsReaderModel }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
+  const [askCollapsed, setAskCollapsed] = useState(false);
   const readerModel: DocsReaderModel = model ?? {
     projectId: 'project-alpha',
     projectName: docsArticle.projectName,
@@ -888,7 +1025,32 @@ export function DocsReader({ model }: { model?: DocsReaderModel }) {
     },
     summaryCards: [],
     fileTable: [],
+    viewer: {
+      displayName: 'Guest',
+      nameInitial: 'G',
+    },
   };
+
+  useEffect(() => {
+    const cached = readAskWikiPanelCache(`codebase-wiki:ask-wiki-panel:${readerModel.projectId}`);
+    setAskCollapsed(cached?.collapsed ?? false);
+  }, [readerModel.projectId]);
+
+  function toggleAskWikiPanel() {
+    setAskCollapsed((current) => {
+      const next = !current;
+      const cacheKey = `codebase-wiki:ask-wiki-panel:${readerModel.projectId}`;
+      const cached = readAskWikiPanelCache(cacheKey);
+      writeAskWikiPanelCache(cacheKey, {
+        sessions: cached?.sessions ?? [],
+        activeSessionId: cached?.activeSessionId ?? '',
+        messages: cached?.messages ?? [],
+        input: cached?.input ?? '',
+        collapsed: next,
+      });
+      return next;
+    });
+  }
 
   return (
     <AppShell
@@ -897,7 +1059,14 @@ export function DocsReader({ model }: { model?: DocsReaderModel }) {
           <GradientButton onClick={() => setSearchOpen(true)} variant="search" leadingIcon={<SearchIcon />} className="hidden h-11 w-[376px] justify-start px-8 md:inline-flex">
             Search docs....
           </GradientButton>
-          <GradientButton variant="ask" leadingIcon={<SparkIcon />} className="hidden h-11 px-8 xl:inline-flex">
+          <GradientButton
+            onClick={toggleAskWikiPanel}
+            variant="ask"
+            leadingIcon={<SparkIcon />}
+            className="hidden h-11 px-8 xl:inline-flex"
+            aria-expanded={!askCollapsed}
+            aria-controls="ask-wiki-panel"
+          >
             Ask Wiki
           </GradientButton>
           <GradientButton onClick={() => setMcpOpen(true)} variant="secondary" className="hidden h-11 px-6 xl:inline-flex">
@@ -913,7 +1082,7 @@ export function DocsReader({ model }: { model?: DocsReaderModel }) {
         <main className="min-w-0 flex-1">
           <ArticleCanvas model={readerModel} />
         </main>
-        <AskWikiPanel projectId={readerModel.projectId} />
+        <AskWikiPanel projectId={readerModel.projectId} collapsed={askCollapsed} />
       </div>
     </AppShell>
   );

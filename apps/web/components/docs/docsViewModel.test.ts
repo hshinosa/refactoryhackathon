@@ -116,4 +116,42 @@ describe('docs reader view model', () => {
 
     assert.equal(architectureModelWithoutMermaid.sections[0]?.blocks.length, 0);
   });
+
+  test('parses ordered markdown lists into dedicated list blocks', () => {
+    const model = buildDocsReaderModel({
+      docs: {
+        projectId: 'project-ordered-list',
+        version: 1,
+        pages: [
+          {
+            slug: 'overview',
+            title: 'Overview',
+            content: [
+              '## Overview',
+              '',
+              '### Primary workflows',
+              '',
+              '1. **Run the unified database setup** via `php artisan aplikasir:setup-unified-db`.',
+              '2. **Test QR generation locally** through `php artisan test:qrcode`.',
+              '3. **Use authenticated web/app flows** from the Laravel controllers.',
+            ].join('\n'),
+          },
+        ],
+        sidebar: [{ title: 'Overview', slug: 'overview', children: [] }],
+      },
+      activeSlug: 'overview',
+    });
+
+    const workflowSection = model.sections.find((section) => section.heading === 'Primary workflows');
+    assert.equal(workflowSection?.blocks[0]?.type, 'list');
+    assert.deepEqual(workflowSection?.blocks[0], {
+      type: 'list',
+      ordered: true,
+      items: [
+        '**Run the unified database setup** via `php artisan aplikasir:setup-unified-db`.',
+        '**Test QR generation locally** through `php artisan test:qrcode`.',
+        '**Use authenticated web/app flows** from the Laravel controllers.',
+      ],
+    });
+  });
 });

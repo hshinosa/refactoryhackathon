@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { cn } from '@/components/ui/cn';
 import type { DocsReaderSidebarIcon, DocsReaderSidebarItem } from './docsViewModel';
 
@@ -21,7 +22,7 @@ function NavPage({ page, nested = false }: { page: DocsReaderSidebarItem; nested
   return (
     <li className={cn(page.startsNewSection && !nested && 'mt-4 border-t border-white/10 pt-4')}>
       <div className="flex items-center gap-1">
-        <a
+        <Link
           href={page.href}
           className={cn(
             'group flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition',
@@ -33,7 +34,7 @@ function NavPage({ page, nested = false }: { page: DocsReaderSidebarItem; nested
         >
           <SidebarIcon icon={page.icon} nested={nested} />
           <span className="truncate">{page.title}</span>
-        </a>
+        </Link>
         {hasChildren ? (
           <button
             type="button"

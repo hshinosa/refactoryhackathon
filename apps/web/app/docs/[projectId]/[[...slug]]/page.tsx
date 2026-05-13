@@ -5,9 +5,9 @@ import { buildDocsReaderModel } from '@/components/docs/docsViewModel';
 import { getRequiredSessionIdentity, UnauthorizedError } from '@/lib/auth/session';
 
 export default async function DocsReaderPage({ params }: { params: { projectId: string; slug?: string[] } }) {
-  let userId: string;
+  let identity;
   try {
-    userId = (await getRequiredSessionIdentity()).userId;
+    identity = await getRequiredSessionIdentity();
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       redirect('/auth/sign-in');
@@ -17,7 +17,7 @@ export default async function DocsReaderPage({ params }: { params: { projectId: 
 
   await initializePostgresSchema();
   const project = await new PostgresProjectStore().getProject(params.projectId);
-  if (!project || project.ownership.ownerUserId !== userId) {
+  if (!project || project.ownership.ownerUserId !== identity.userId) {
     notFound();
   }
 
@@ -27,5 +27,15 @@ export default async function DocsReaderPage({ params }: { params: { projectId: 
   }
 
   const activeSlug = params.slug?.at(-1);
-  return <DocsReader model={buildDocsReaderModel({ docs, activeSlug })} />;
+  return (
+    <DocsReader
+      model={{
+        ...buildDocsReaderModel({ docs, activeSlug }),
+        viewer: {
+          displayName: identity.name ?? identity.email ?? 'Account',
+          nameInitial: (identity.name ?? identity.email ?? 'A').trim().charAt(0).toUpperCase() || 'A',
+        },
+      }}
+    />
+  );
 }

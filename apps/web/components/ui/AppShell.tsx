@@ -13,7 +13,7 @@ interface AppShellProps {
 export function AppShell({ title = 'Codebase Wiki', children, actions, nav, className }: AppShellProps) {
   return (
     <main className={cn('min-h-screen bg-[#080f17] text-slate-100', className)}>
-      <header className="flex h-16 items-center border-b border-slate-500/35 px-6 md:px-12">
+      <header className="sticky top-0 z-40 flex h-16 items-center border-b border-slate-500/35 bg-[#080f17]/90 px-6 backdrop-blur-xl md:px-12">
         <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-6">
           <div className="flex items-center gap-3 justify-self-start">
             <LogoMark size="h-8 w-8" />

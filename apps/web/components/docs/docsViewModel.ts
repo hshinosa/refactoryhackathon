@@ -33,6 +33,10 @@ export type DocsReaderModel = {
   sidebar: DocsReaderSidebarItem[];
   previous: { label: string; href: string };
   next: { label: string; href: string };
+  viewer: {
+    displayName: string;
+    nameInitial: string;
+  };
 };
 
 export type DocsReaderSection = {
@@ -43,7 +47,7 @@ export type DocsReaderSection = {
 
 export type DocsReaderBlock =
   | { type: 'paragraph'; text: string }
-  | { type: 'list'; items: string[] }
+  | { type: 'list'; items: string[]; ordered?: boolean }
   | { type: 'code'; language: string; code: string }
   | { type: 'table'; headers: string[]; rows: string[][] };
 
@@ -94,6 +98,10 @@ export function buildDocsReaderModel(input: { docs: GeneratedDocsInput; activeSl
     next: {
       label: next?.title ?? 'Overview',
       href: next ? `/docs/${input.docs.projectId}/${next.slug}` : `/docs/${input.docs.projectId}`,
+    },
+    viewer: {
+      displayName: 'Guest',
+      nameInitial: 'G',
     },
   };
 }
@@ -249,7 +257,17 @@ function parseMarkdownBlocks(markdown: string): DocsReaderBlock[] {
         items.push((lines[index] ?? '').replace(/^\s*[-*]\s+/, '').trim());
         index += 1;
       }
-      blocks.push({ type: 'list', items });
+      blocks.push({ type: 'list', items, ordered: false });
+      continue;
+    }
+
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index] ?? '')) {
+        items.push((lines[index] ?? '').replace(/^\s*\d+\.\s+/, '').trim());
+        index += 1;
+      }
+      blocks.push({ type: 'list', items, ordered: true });
       continue;
     }
 
@@ -259,6 +277,7 @@ function parseMarkdownBlocks(markdown: string): DocsReaderBlock[] {
       (lines[index] ?? '').trim() &&
       !/^```/.test(lines[index] ?? '') &&
       !/^\s*[-*]\s+/.test(lines[index] ?? '') &&
+      !/^\s*\d+\.\s+/.test(lines[index] ?? '') &&
       !isTableStart(lines, index)
     ) {
       paragraph.push((lines[index] ?? '').trim());

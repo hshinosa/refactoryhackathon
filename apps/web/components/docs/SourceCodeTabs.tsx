@@ -35,21 +35,20 @@ export function SourceCodeTabs({ files }: { files: DocsReaderSourceFile[] }) {
           ))}
         </div>
       </div>
-      <div className="relative max-h-[430px] overflow-hidden bg-[#060b12]">
+      <div className="relative h-[440px] overflow-auto bg-[#060b12]">
         <div className="pointer-events-none absolute right-3 top-3 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-slate-400">
           {activeFile.language}
         </div>
-        <div className="flex min-w-0 text-sm leading-6">
-          <div className="select-none border-r border-white/10 bg-white/[0.02] px-4 py-5 text-right font-mono text-slate-600">
-            {Array.from({ length: Math.min(lineCount, 80) }, (_, index) => (
+        <div className="flex min-w-full text-sm leading-6">
+          <div className="sticky left-0 self-start select-none border-r border-white/10 bg-[#07111d] px-4 py-5 text-right font-mono text-slate-600">
+            {Array.from({ length: lineCount }, (_, index) => (
               <div key={index}>{index + 1}</div>
             ))}
           </div>
-          <pre className="min-w-0 flex-1 overflow-x-auto p-5 font-mono text-[13px] leading-6 text-[#cbd5e1]">
-            <code>{activeFile.content}</code>
+          <pre className="min-w-0 flex-1 overflow-x-auto p-5 pr-16 font-mono text-[13px] leading-6 text-[#cbd5e1]">
+            <code className="block min-w-max whitespace-pre">{activeFile.content}</code>
           </pre>
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#060b12] to-transparent" />
       </div>
     </GlassCard>
   );
